@@ -6391,7 +6391,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "workbench-zero"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -6459,7 +6459,7 @@ dependencies = [
 
 [[package]]
 name = "wz-artifacts"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -6470,26 +6470,39 @@ dependencies = [
 
 [[package]]
 name = "wz-commands"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
+ "wz-common",
+]
+
+[[package]]
+name = "wz-common"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
 name = "wz-events"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
 name = "wz-kernel"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6512,6 +6525,7 @@ dependencies = [
  "walkdir",
  "wz-artifacts",
  "wz-commands",
+ "wz-common",
  "wz-events",
  "wz-permissions",
  "wz-plugin-runtime",
@@ -6524,27 +6538,30 @@ dependencies = [
 
 [[package]]
 name = "wz-mcp"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
  "serde_json",
  "walkdir",
+ "wz-common",
+ "wz-permissions",
 ]
 
 [[package]]
 name = "wz-permissions"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
 name = "wz-plugin-runtime"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
@@ -6554,6 +6571,7 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
+ "wz-common",
  "wz-permissions",
  "wz-settings",
  "zip 2.4.2",
@@ -6561,7 +6579,7 @@ dependencies = [
 
 [[package]]
 name = "wz-search"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -6571,39 +6589,42 @@ dependencies = [
 
 [[package]]
 name = "wz-secrets"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "keyring",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
 name = "wz-settings"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
 name = "wz-storage"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dirs 5.0.1",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
 name = "wz-workspace"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -6612,6 +6633,8 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "uuid",
+ "walkdir",
+ "wz-common",
 ]
 
 [[package]]

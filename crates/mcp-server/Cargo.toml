@@ -9,6 +9,8 @@ name = "wz-mcp"
 path = "src/main.rs"
 
 [dependencies]
+wz-common = { workspace = true }
+wz-permissions = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 walkdir = { workspace = true }

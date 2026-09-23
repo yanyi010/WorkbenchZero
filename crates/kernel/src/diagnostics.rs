@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
 
+use wz_common::MutexRecover;
+
 const RING_CAP: usize = 256;
 
 pub struct StartupTracker {
@@ -94,8 +96,8 @@ impl Diagnostics {
     }
 
     pub fn record_startup(&self, phases: Vec<(String, f64)>, total_ms: f64) {
-        *self.startup.lock().unwrap() = phases;
-        *self.startup_total_ms.lock().unwrap() = total_ms;
+        *self.startup.lock_or_recover() = phases;
+        *self.startup_total_ms.lock_or_recover() = total_ms;
     }
 
     pub fn record_rpc(&self, method: &str, ms: f64) {
@@ -115,7 +117,7 @@ impl Diagnostics {
     }
 
     pub fn record_search(&self, ms: f64) {
-        self.search.lock().unwrap().record(ms);
+        self.search.lock_or_recover().record(ms);
     }
 
     pub fn snapshot(&self) -> serde_json::Value {
@@ -145,10 +147,10 @@ impl Diagnostics {
             "bootTime": self.boot_time.to_rfc3339(),
             "uptimeSec": (chrono::Utc::now() - self.boot_time).num_seconds(),
             "startupPhases": startup,
-            "startupTotalMs": *self.startup_total_ms.lock().unwrap(),
+            "startupTotalMs": *self.startup_total_ms.lock_or_recover(),
             "rpcLatency": rpc,
             "pluginActivationMs": activation,
-            "searchLatency": self.search.lock().unwrap().stats(),
+            "searchLatency": self.search.lock_or_recover().stats(),
         })
     }
 }

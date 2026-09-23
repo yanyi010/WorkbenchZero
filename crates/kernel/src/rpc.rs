@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
+use wz_common::{atomic_write_str, MutexRecover};
 
 use crate::fs as fs_cap;
 use crate::{CallerCtx, KResult, Kernel, KernelError};
@@ -34,12 +35,13 @@ pub fn dispatch(
         })),
         "app.diagnostics" => Ok(kernel.diagnostics.snapshot()),
         "app.exportDiagnostics" => {
+            app_only(&caller)?;
             let snapshot = kernel.diagnostics.snapshot();
             let path = kernel.dirs.data.join(format!(
                 "diagnostics-{}.json",
                 chrono::Utc::now().format("%Y%m%d-%H%M%S")
             ));
-            std::fs::write(&path, serde_json::to_string_pretty(&snapshot)?)
+            atomic_write_str(&path, &serde_json::to_string_pretty(&snapshot)?)
                 .map_err(|e| KernelError::Message(format!("cannot write diagnostics: {e}")))?;
             Ok(json!({ "path": path.display().to_string() }))
         }
@@ -55,10 +57,15 @@ pub fn dispatch(
         }
         "system.reveal" => {
             let path = str_param(&params, "path")?;
+            let resolved = kernel.resolve_path(path)?;
             if caller.plugin_id.is_some() {
                 check_flag(kernel, &caller, "system:open")?;
+                // Revealing opens a file manager at the path — it discloses
+                // directory contents, so plugins are limited to paths they
+                // could already read.
+                fs_cap::check(kernel, &caller, false, &resolved)?;
             }
-            reveal(&kernel.resolve_path(path)?);
+            reveal(&resolved);
             Ok(Value::Null)
         }
         "system.openUrl" => {
@@ -77,30 +84,34 @@ pub fn dispatch(
 
         // -- workspace ---------------------------------------------------------
         "workspace.list" => {
-            let mgr = kernel.workspaces.lock().unwrap();
+            app_only(&caller)?;
+            let mgr = kernel.workspaces.lock_or_recover();
             Ok(json!(mgr.list()))
         }
         "workspace.create" => {
+            app_only(&caller)?;
             let name = str_param(&params, "name")?;
             let root = str_param(&params, "root")?;
             let create_root = params["createRoot"].as_bool().unwrap_or(false);
             let ws = {
-                let mut mgr = kernel.workspaces.lock().unwrap();
+                let mut mgr = kernel.workspaces.lock_or_recover();
                 mgr.create(name, PathBuf::from(root), create_root)
                     .map_err(|e| KernelError::Message(e.to_string()))?
             };
             Ok(workspace_json(&ws))
         }
         "workspace.register" => {
+            app_only(&caller)?;
             let root = str_param(&params, "root")?;
             let ws = {
-                let mut mgr = kernel.workspaces.lock().unwrap();
+                let mut mgr = kernel.workspaces.lock_or_recover();
                 mgr.register_existing(PathBuf::from(root))
                     .map_err(|e| KernelError::Message(e.to_string()))?
             };
             Ok(workspace_json(&ws))
         }
         "workspace.open" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let state = kernel.open_workspace(id)?;
             Ok(json!({
@@ -113,10 +124,12 @@ pub fn dispatch(
             None => Ok(Value::Null),
         },
         "workspace.close" => {
+            app_only(&caller)?;
             kernel.close_workspace()?;
             Ok(Value::Null)
         }
         "workspace.saveLayout" => {
+            app_only(&caller)?;
             let layout = params["layout"].clone();
             if !layout.is_object() {
                 return Err(KernelError::Message("layout must be an object".into()));
@@ -128,10 +141,26 @@ pub fn dispatch(
             Ok(Value::Null)
         }
         "workspace.remove" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
-            let mut mgr = kernel.workspaces.lock().unwrap();
+            let mut mgr = kernel.workspaces.lock_or_recover();
             mgr.remove(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
+            Ok(Value::Null)
+        }
+        "workspace.backupNow" => {
+            app_only(&caller)?;
+            let info = kernel.backup_now()?;
+            Ok(serde_json::to_value(info).unwrap_or(Value::Null))
+        }
+        "workspace.listBackups" => {
+            app_only(&caller)?;
+            Ok(serde_json::to_value(kernel.list_backups()?).unwrap_or(Value::Null))
+        }
+        "workspace.restoreBackup" => {
+            app_only(&caller)?;
+            let id = params.get("id").and_then(|v| v.as_str());
+            kernel.restore_backup(id)?;
             Ok(Value::Null)
         }
 
@@ -165,6 +194,14 @@ pub fn dispatch(
         "settings.reset" => {
             let scope = str_param(&params, "scope")?;
             let key = str_param(&params, "key")?;
+            if let Some(plugin_id) = &caller.plugin_id {
+                let prefix = format!("{plugin_id}.");
+                if !key.starts_with(&prefix) {
+                    return Err(KernelError::Permission(format!(
+                        "plugin `{plugin_id}` cannot reset setting `{key}`"
+                    )));
+                }
+            }
             let scope = parse_scope(scope)?;
             kernel
                 .settings
@@ -222,6 +259,7 @@ pub fn dispatch(
                 .ok_or_else(|| KernelError::Message(format!("plugin `{id}` not found")))
         }
         "plugins.install" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             // Bundled trusted plugins install with auto-grants; everything
             // else resolves through the catalog and needs approval.
@@ -263,6 +301,7 @@ pub fn dispatch(
             Ok(json!(info))
         }
         "plugins.installFromPath" => {
+            app_only(&caller)?;
             let path = str_param(&params, "path")?;
             let info = kernel
                 .plugins
@@ -275,6 +314,7 @@ pub fn dispatch(
             Ok(json!(info))
         }
         "plugins.approvePermissions" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let approve = params["approve"].as_bool().unwrap_or(false);
             let info = kernel
@@ -285,6 +325,7 @@ pub fn dispatch(
             Ok(json!(info))
         }
         "plugins.enable" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let info = kernel
                 .plugins
@@ -297,6 +338,7 @@ pub fn dispatch(
             Ok(json!(info))
         }
         "plugins.disable" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let info = kernel
                 .plugins
@@ -309,6 +351,7 @@ pub fn dispatch(
             Ok(json!(info))
         }
         "plugins.uninstall" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             kernel
                 .plugins
@@ -321,6 +364,7 @@ pub fn dispatch(
             Ok(Value::Null)
         }
         "plugins.setPinned" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let pinned = params["pinned"].as_bool().unwrap_or(false);
             kernel
@@ -330,6 +374,7 @@ pub fn dispatch(
             Ok(Value::Null)
         }
         "plugins.markActive" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let ms = params["activationMs"].as_f64().unwrap_or(0.0);
             kernel
@@ -340,6 +385,7 @@ pub fn dispatch(
             Ok(Value::Null)
         }
         "plugins.reportFailure" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let reason = params["reason"].as_str().unwrap_or("unknown").to_string();
             let count = kernel
@@ -385,15 +431,33 @@ pub fn dispatch(
             Ok(json!({ "failures": count }))
         }
         "plugins.resetFailures" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             kernel
                 .plugins
-                .set_state(id, wz_plugin_runtime::PluginState::Enabled)
+                .reset_failures(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
+            // Re-enable goes through `enable`, which refuses plugins whose
+            // updated permissions still await user approval.
+            if let Err(e) = kernel.plugins.enable(id) {
+                kernel.sync_registries();
+                return Err(KernelError::Message(e.to_string()));
+            }
+            kernel.sync_registries();
+            kernel
+                .events
+                .emit("plugin.enabled", None, json!({ "id": id }));
             Ok(Value::Null)
         }
         "plugins.logs" => {
             let id = str_param(&params, "id")?;
+            if let Some(plugin_id) = &caller.plugin_id {
+                if plugin_id != id {
+                    return Err(KernelError::Permission(format!(
+                        "plugin `{plugin_id}` cannot read logs of `{id}`"
+                    )));
+                }
+            }
             Ok(json!(crate::PLUGIN_LOGS.get(id)))
         }
         "plugin.log" => {
@@ -416,6 +480,7 @@ pub fn dispatch(
         "plugins.registry" => Ok(json!(kernel.plugins.load_catalog())),
         "plugins.packs" => Ok(json!(kernel.plugins.load_packs())),
         "plugins.checkUpdates" => {
+            app_only(&caller)?;
             let mut updates = vec![];
             for entry in kernel.plugins.load_catalog() {
                 if let Some(rec) = kernel.plugins.get(&entry.id) {
@@ -434,6 +499,7 @@ pub fn dispatch(
             Ok(json!(updates))
         }
         "plugins.update" => {
+            app_only(&caller)?;
             let id = str_param(&params, "id")?;
             let rec = kernel
                 .plugins
@@ -467,6 +533,7 @@ pub fn dispatch(
             Ok(json!({ "updated": true, "info": info }))
         }
         "plugins.installPack" => {
+            app_only(&caller)?;
             let pack_id = str_param(&params, "packId")?;
             let pack = kernel
                 .plugins
@@ -753,12 +820,16 @@ pub fn dispatch(
                 })?;
             file.write_all(content.as_bytes())
                 .map_err(|e| KernelError::Message(format!("append failed: {e}")))?;
+            file.sync_all()
+                .map_err(|e| KernelError::Message(format!("append sync failed: {e}")))?;
             Ok(Value::Null)
         }
         "fs.move" => {
             let from = kernel.resolve_path(str_param(&params, "from")?)?;
             let to = kernel.resolve_path(str_param(&params, "to")?)?;
-            let from_c = fs_cap::check(kernel, &caller, false, &from)?;
+            // Moving removes the source, so the source needs write scope,
+            // not merely read — a read-only grant must never delete files.
+            let from_c = fs_cap::check(kernel, &caller, true, &from)?;
             let to_c = fs_cap::check(kernel, &caller, true, &to)?;
             if let Some(parent) = to_c.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| {
@@ -822,13 +893,13 @@ pub fn dispatch(
         }
         "network.abort" => {
             let stream_id = str_param(&params, "streamId")?;
-            Ok(json!({ "aborted": kernel.net.abort(stream_id) }))
+            Ok(json!({ "aborted": kernel.net.abort(stream_id, &caller) }))
         }
 
         // -- secrets (owner-scoped) ------------------------------------------------------
         "secrets.set" => {
             let plugin_id = require_plugin(&caller)?;
-            check_flag(kernel, &caller, "secrets:read")?;
+            check_flag(kernel, &caller, "secrets:write")?;
             let key = str_param(&params, "key")?;
             let value = str_param(&params, "value")?;
             kernel
@@ -849,7 +920,7 @@ pub fn dispatch(
         }
         "secrets.delete" => {
             let plugin_id = require_plugin(&caller)?;
-            check_flag(kernel, &caller, "secrets:read")?;
+            check_flag(kernel, &caller, "secrets:write")?;
             let key = str_param(&params, "key")?;
             let removed = kernel
                 .secrets
@@ -925,7 +996,7 @@ pub fn dispatch(
             );
             Ok(Value::Null)
         }
-        "notify.list" => Ok(json!(*kernel.notifications.lock().unwrap())),
+        "notify.list" => Ok(json!(*kernel.notifications.lock_or_recover())),
 
         // -- ai tools registry ---------------------------------------------------------
         "ai.registerTool" => {
@@ -941,6 +1012,11 @@ pub fn dispatch(
         }
         "ai.listTools" => Ok(json!(crate::AI_TOOLS.list())),
         "ai.callTool" => {
+            // Any AI-surface caller (including plugins) needs the declared
+            // ai:invoke grant; confirmation for high-risk tools happens in
+            // that caller's UI, so the grant is the kernel-side evidence of
+            // user opt-in.
+            check_flag(kernel, &caller, "ai:invoke")?;
             let name = str_param(&params, "name")?;
             let args = params
                 .get("args")
@@ -982,7 +1058,7 @@ pub fn dispatch(
         }
         "ai.toolResult" => {
             let plugin_id = require_plugin(&caller)?;
-            let request_id = params["requestId"].as_u64().unwrap_or(0);
+            let request_id = str_param(&params, "requestId")?;
             let ok = params["ok"].as_bool().unwrap_or(false);
             let result = params.get("result").cloned().unwrap_or(Value::Null);
             let error = params

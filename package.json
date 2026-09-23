@@ -1,7 +1,7 @@
 {
   "name": "workbench-zero-monorepo",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && npm run -ws --if-present typecheck",
     "test": "vitest run",
     "lint": "eslint .",
-    "wb": "node packages/devtools/src/wb.mjs"
+    "wb": "node packages/devtools/src/wb.mjs",
+    "assets:generate": "node scripts/generate-assets.mjs"
   },
   "devDependencies": {
     "@tauri-apps/api": "^2.11.1",

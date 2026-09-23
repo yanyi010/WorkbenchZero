@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="Workbench Zero shell (dark theme)">
+  <!-- Workbench Zero hero — a faithful miniature of the running shell:
+       title bar · activity bar · sidebar · tab strip · memo view · status bar.
+       Colors are the app's real tokens (packages/ui-kit/src/tokens.css). -->
+  <defs>
+    <linearGradient id="heroBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141519"/>
+      <stop offset="1" stop-color="#1b1c20"/>
+    </linearGradient>
+    <clipPath id="win"><rect x="40" y="40" width="1520" height="920" rx="14"/></clipPath>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#heroBase)"/>
+
+  <!-- window -->
+  <g clip-path="url(#win)">
+    <rect x="40" y="40" width="1520" height="920" fill="#1b1c20"/>
+
+    <!-- title bar -->
+    <rect x="40" y="40" width="1520" height="44" fill="#141519"/>
+    <circle cx="70" cy="62" r="6" fill="#f85149"/>
+    <circle cx="94" cy="62" r="6" fill="#d29922"/>
+    <circle cx="118" cy="62" r="6" fill="#3fb950"/>
+    <text x="150" y="67" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#e6e7ea">Workbench Zero</text>
+    <rect x="310" y="50" width="150" height="24" rx="12" fill="#24262b" stroke="#383b42"/>
+    <text x="324" y="66" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">Research ▾</text>
+    <rect x="1410" y="50" width="66" height="24" rx="12" fill="#5b8cff"/>
+    <text x="1426" y="66" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#ffffff">v1.0.0</text>
+
+    <!-- activity bar -->
+    <rect x="40" y="84" width="52" height="828" fill="#141519"/>
+    <rect x="56" y="104" width="20" height="20" rx="5" fill="#5b8cff"/>
+    <rect x="56" y="140" width="20" height="20" rx="5" fill="#383b42"/>
+    <rect x="56" y="176" width="20" height="20" rx="5" fill="#383b42"/>
+    <rect x="56" y="212" width="20" height="20" rx="5" fill="#383b42"/>
+
+    <!-- sidebar -->
+    <rect x="92" y="84" width="250" height="828" fill="#24262b"/>
+    <line x1="342" y1="84" x2="342" y2="912" stroke="#383b42"/>
+    <text x="112" y="116" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#94969e">MEMOS</text>
+    <rect x="104" y="128" width="226" height="26" rx="6" fill="#383b42"/>
+    <text x="118" y="146" font-family="system-ui, sans-serif" font-size="12" fill="#e6e7ea">spring-reading.md</text>
+    <text x="118" y="178" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">release-checklist.md</text>
+    <text x="118" y="204" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">conference-notes.md</text>
+    <text x="118" y="230" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">ideas — batch rendering.md</text>
+    <text x="112" y="270" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#94969e">TASKS</text>
+    <text x="118" y="294" font-family="system-ui, sans-serif" font-size="12" fill="#e6e7ea">☐ Review click tracker</text>
+    <text x="118" y="320" font-family="system-ui, sans-serif" font-size="12" fill="#3fb950">☑ Ship 1.0.0-rc.1</text>
+
+    <!-- tab strip -->
+    <rect x="342" y="84" width="1218" height="36" fill="#141519"/>
+    <rect x="342" y="84" width="170" height="36" fill="#1b1c20"/>
+    <rect x="342" y="84" width="170" height="2" fill="#5b8cff"/>
+    <text x="358" y="107" font-family="system-ui, sans-serif" font-size="12" fill="#e6e7ea">spring-reading.md</text>
+    <text x="482" y="107" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">✕</text>
+    <rect x="512" y="84" width="140" height="36" fill="#141519"/>
+    <line x1="512" y1="84" x2="512" y2="120" stroke="#383b42"/>
+    <text x="528" y="107" font-family="system-ui, sans-serif" font-size="12" fill="#94969e">Dashboard</text>
+
+    <!-- editor content -->
+    <text x="386" y="176" font-family="ui-monospace, monospace" font-size="20" font-weight="700" fill="#e6e7ea"># Spring reading list</text>
+    <g font-family="ui-monospace, monospace" font-size="14">
+      <text x="386" y="226" fill="#5b8cff">## Now reading</text>
+      <text x="386" y="256" fill="#e6e7ea">- The Practice of Programming — ch. 4</text>
+      <text x="386" y="282" fill="#e6e7ea">- A Philosophy of Software Design</text>
+      <text x="386" y="322" fill="#5b8cff">## Queue</text>
+      <text x="386" y="352" fill="#e6e7ea">- Designing Data-Intensive Applications</text>
+      <text x="386" y="378" fill="#e6e7ea">- The Mythical Man-Month (re-read)</text>
+      <text x="386" y="418" fill="#94969e">linked: t 20260312-094217-spring-reading.md</text>
+    </g>
+
+    <!-- a plugin widget card -->
+    <rect x="1040" y="160" width="480" height="240" rx="10" fill="#24262b" stroke="#383b42"/>
+    <text x="1064" y="190" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#e6e7ea">Sticky</text>
+    <rect x="1064" y="204" width="432" height="120" rx="8" fill="#f6c344" opacity="0.92"/>
+    <text x="1082" y="240" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#1c1d21">Plane tickets</text>
+    <text x="1082" y="264" font-family="system-ui, sans-serif" font-size="12" fill="#1c1d21">Book before Thursday — prices jump</text>
+    <text x="1082" y="284" font-family="system-ui, sans-serif" font-size="12" fill="#1c1d21">- [ ] compare trains too</text>
+    <text x="1064" y="352" font-family="system-ui, sans-serif" font-size="11" fill="#94969e">plugin: zero.sticky · autosaved 12s ago</text>
+
+    <!-- bottom panel: terminal -->
+    <rect x="342" y="700" width="1218" height="212" fill="#141519"/>
+    <line x1="342" y1="700" x2="1560" y2="700" stroke="#383b42"/>
+    <text x="360" y="726" font-family="ui-monospace, monospace" font-size="12" fill="#94969e">TERMINAL</text>
+    <g font-family="ui-monospace, monospace" font-size="13">
+      <text x="360" y="758" fill="#3fb950">~/research $</text>
+      <text x="470" y="758" fill="#e6e7ea">wb plugin validate plugins/zero.memo</text>
+      <text x="360" y="782" fill="#3fb950">✓ manifest valid · permissions: workspace:read, workspace:write</text>
+      <text x="360" y="806" fill="#e6e7ea">✓ built dist/main.js (18.2 kB)</text>
+    </g>
+
+    <!-- status bar -->
+    <rect x="40" y="912" width="1520" height="28" fill="#5b8cff"/>
+    <text x="56" y="930" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#ffffff">Workspace: Research ⌄</text>
+    <text x="1180" y="930" font-family="system-ui, sans-serif" font-size="12" fill="#dbe4ff">6 plugins · 3 memos today</text>
+    <text x="1440" y="930" font-family="system-ui, sans-serif" font-size="12" fill="#dbe4ff">UTF-8 · LF</text>
+  </g>
+  <rect x="40" y="40" width="1520" height="920" rx="14" fill="none" stroke="#383b42"/>
+</svg>

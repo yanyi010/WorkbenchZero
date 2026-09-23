@@ -2,13 +2,25 @@ name: CI
 
 on:
   push:
-    branches: [main, dev/*]
+    branches: [main, dev/*, release/*]
   pull_request:
+  schedule:
+    # Nightly dependency-audit even without pushes.
+    - cron: '17 3 * * *'
+
+# Least privilege by default; jobs escalate nothing.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   js:
-    name: TypeScript (typecheck · lint · test · build)
+    name: TypeScript (typecheck · lint · test · build · determinism)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,10 +32,19 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: npm audit (production deps, high+)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Deterministic plugin build
+        run: |
+          sha256sum $(find apps/desktop/src-tauri/resources -type f | sort) > /tmp/first.sha
+          npm run build >/dev/null
+          sha256sum $(find apps/desktop/src-tauri/resources -type f | sort) > /tmp/second.sha
+          diff -u /tmp/first.sha /tmp/second.sha
 
   rust:
     name: Rust (fmt · clippy · test)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -38,9 +59,40 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
+  rust-msrv:
+    name: Rust MSRV (1.88 check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.88.0'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-targets --locked
+
+  cargo-audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # rustsec/audit-check posts its findings as a check run.
+      checks: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   wb-cli:
     name: wb CLI smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,6 +122,7 @@ jobs:
   plugins:
     name: First-party plugin manifests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

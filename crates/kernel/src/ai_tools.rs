@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use serde_json::Value;
+use wz_common::RwLockRecover;
 
 use crate::KResult;
 
@@ -46,6 +47,11 @@ impl AiToolRegistry {
             .and_then(|v| v.as_str())
             .ok_or_else(|| crate::KernelError::Message("ai tool requires a name".into()))?
             .to_string();
+        if name.trim().is_empty() || name.len() > 128 {
+            return Err(crate::KernelError::Message(
+                "ai tool name must be non-empty and <= 128 chars".into(),
+            ));
+        }
         let tool = AiTool {
             description: value
                 .get("description")
@@ -60,7 +66,19 @@ impl AiToolRegistry {
             plugin_id: plugin_id.to_string(),
             name,
         };
-        self.tools.write().unwrap().insert(tool.name.clone(), tool);
+        let mut tools = self.tools.write_or_recover();
+        // Tool names are global; a plugin may re-register its own tool but
+        // must never overwrite another plugin's (name squatting would
+        // silently redirect AI calls to the squatter).
+        if let Some(existing) = tools.get(&tool.name) {
+            if existing.plugin_id != plugin_id {
+                return Err(crate::KernelError::Permission(format!(
+                    "ai tool `{}` is already owned by plugin `{}`",
+                    tool.name, existing.plugin_id
+                )));
+            }
+        }
+        tools.insert(tool.name.clone(), tool);
         Ok(())
     }
 
@@ -86,19 +104,18 @@ impl AiToolRegistry {
 
     pub fn unregister_by_plugin(&self, plugin_id: &str) {
         self.tools
-            .write()
-            .unwrap()
+            .write_or_recover()
             .retain(|_, t| t.plugin_id != plugin_id);
     }
 
     pub fn list(&self) -> Vec<AiTool> {
-        let mut tools: Vec<AiTool> = self.tools.read().unwrap().values().cloned().collect();
+        let mut tools: Vec<AiTool> = self.tools.read_or_recover().values().cloned().collect();
         tools.sort_by(|a, b| a.name.cmp(&b.name));
         tools
     }
 
     pub fn tool(&self, name: &str) -> Option<AiTool> {
-        self.tools.read().unwrap().get(name).cloned()
+        self.tools.read_or_recover().get(name).cloned()
     }
 }
 
@@ -106,8 +123,7 @@ impl AiToolRegistry {
 /// plugin's logic iframe via a `plugin-push` and parks the RPC thread until
 /// the plugin answers with `ai.toolResult` (or the timeout fires).
 pub struct PendingToolCalls {
-    next_id: std::sync::atomic::AtomicU64,
-    pending: RwLock<HashMap<u64, (String, std::sync::mpsc::Sender<Value>)>>,
+    pending: RwLock<HashMap<String, (String, std::sync::mpsc::Sender<Value>)>>,
 }
 
 impl Default for PendingToolCalls {
@@ -119,31 +135,35 @@ impl Default for PendingToolCalls {
 impl PendingToolCalls {
     pub fn new() -> Self {
         Self {
-            next_id: std::sync::atomic::AtomicU64::new(1),
             pending: RwLock::new(HashMap::new()),
         }
     }
 
     /// Park a tool call; returns the request id and the receiving end the
-    /// RPC thread will block on.
-    pub fn begin(&self, owner: &str) -> (u64, std::sync::mpsc::Receiver<Value>) {
-        let id = self
-            .next_id
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    /// RPC thread will block on. Ids are unguessable (UUID v4) so a plugin
+    /// cannot complete — and thereby destroy — another plugin's in-flight
+    /// call by guessing a sequential number.
+    pub fn begin(&self, owner: &str) -> (String, std::sync::mpsc::Receiver<Value>) {
+        let id = uuid::Uuid::new_v4().to_string();
         let (tx, rx) = std::sync::mpsc::channel();
         self.pending
-            .write()
-            .unwrap()
-            .insert(id, (owner.to_string(), tx));
+            .write_or_recover()
+            .insert(id.clone(), (owner.to_string(), tx));
         (id, rx)
     }
 
-    /// Resolve a pending call; only the recorded owner may answer.
-    pub fn complete(&self, request_id: u64, owner: &str, result: Value) -> bool {
-        let entry = self.pending.write().unwrap().remove(&request_id);
-        match entry {
-            Some((expected_owner, tx)) if expected_owner == owner => tx.send(result).is_ok(),
-            _ => false,
+    /// Resolve a pending call; only the recorded owner may answer, and the
+    /// ownership check happens **before** the entry is consumed — a wrong
+    /// owner never destroys the call.
+    pub fn complete(&self, request_id: &str, owner: &str, result: Value) -> bool {
+        let mut pending = self.pending.write_or_recover();
+        match pending.get(request_id) {
+            Some((expected_owner, _)) if expected_owner == owner => {}
+            _ => return false,
+        }
+        match pending.remove(request_id) {
+            Some((_, tx)) => tx.send(result).is_ok(),
+            None => false,
         }
     }
 }
@@ -167,7 +187,14 @@ impl PluginLogs {
     }
 
     pub fn push(&self, plugin_id: &str, level: &str, message: &str) {
-        let mut logs = self.logs.write().unwrap();
+        // Log messages are capped: a misbehaving plugin must not be able to
+        // flood the ring buffer with megabyte-sized lines.
+        let message = if message.len() > 4096 {
+            wz_common::truncate_chars(message, 4096)
+        } else {
+            message
+        };
+        let mut logs = self.logs.write_or_recover();
         let entry = logs.entry(plugin_id.to_string()).or_default();
         entry.push(serde_json::json!({
             "ts": chrono::Utc::now().to_rfc3339(),
@@ -182,8 +209,7 @@ impl PluginLogs {
 
     pub fn get(&self, plugin_id: &str) -> Vec<Value> {
         self.logs
-            .read()
-            .unwrap()
+            .read_or_recover()
             .get(plugin_id)
             .cloned()
             .unwrap_or_default()

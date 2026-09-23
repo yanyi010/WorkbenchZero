@@ -4,6 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
+use wz_common::atomic_write;
+
 use crate::{CallerCtx, KResult, Kernel, KernelError};
 
 const READ_TEXT_MAX: u64 = 4 * 1024 * 1024;
@@ -72,19 +74,9 @@ pub fn read_text(path: &Path, max: u64) -> KResult<serde_json::Value> {
     if truncated {
         bytes.truncate(limit as usize);
     }
-    let mut text = String::from_utf8_lossy(&bytes).to_string();
-    // Don't split mid-codepoint.
-    if truncated {
-        while !text.is_empty()
-            && text
-                .chars()
-                .last()
-                .map(|c| c as u32 > 0x10FFFF)
-                .unwrap_or(false)
-        {
-            text.pop();
-        }
-    }
+    // `from_utf8_lossy` replaces a mid-codepoint truncation with U+FFFD,
+    // which is exactly the display-safe behavior we want.
+    let text = String::from_utf8_lossy(&bytes).to_string();
     Ok(serde_json::json!({
         "content": text,
         "truncated": truncated,
@@ -117,7 +109,9 @@ pub fn write_bytes(path: &Path, content: &[u8], create_dirs: bool) -> KResult<()
             )));
         }
     }
-    std::fs::write(path, content)
+    // User content (memos, tasks.json, ...) is written atomically and
+    // durably: a crash never leaves a torn file behind.
+    atomic_write(path, content)
         .map_err(|e| KernelError::Message(format!("cannot write `{}`: {e}", path.display())))
 }
 

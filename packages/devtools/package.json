@@ -1,6 +1,6 @@
 {
   "name": "@workbench-zero/devtools",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "wb — the Workbench Zero plugin developer CLI",
   "type": "module",
   "bin": {

@@ -21,7 +21,15 @@ interface FrameEntry {
   ready: boolean;
   /** Pending manifest/… handshakes waiting for wz-ready. */
   initSent: boolean;
+  /** Last attach time (LRU eviction of parked view frames). */
+  lastTouched: number;
 }
+
+/** Bridge API versions this host can serve (manifest `apiVersion`). */
+const SUPPORTED_API_VERSIONS = new Set(['1']);
+/** Parked (hidden, kept-alive) view frames beyond this count get evicted,
+ * least-recently-used first. Bounds renderer memory for long sessions. */
+const MAX_PARKED_VIEW_FRAMES = 6;
 
 interface PendingCommand {
   resolve: (value: unknown) => void;
@@ -38,6 +46,11 @@ class PluginHost {
   private pendingCommands = new Map<number, PendingCommand>();
   private nextCommandId = 1;
   private manifestCache = new Map<string, PluginManifest>();
+  /** In-flight logic-frame activations — concurrent ensure calls must
+   * wait on the same frame instead of double-activating a plugin. */
+  private logicActivations = new Map<string, Promise<void>>();
+  /** Wired by the store: surfaced plugin-level failures. */
+  onPluginError: ((pluginId: string, message: string) => void) | null = null;
   private started = false;
 
   start() {
@@ -79,14 +92,17 @@ class PluginHost {
       iframe.style.height = '100%';
     }
     // Cross-origin isolation: sandbox without allow-same-origin so the
-    // frame cannot reach the parent DOM or localStorage.
-    iframe.setAttribute('sandbox', 'allow-scripts');
+    // frame cannot reach the parent DOM or localStorage. `allow-modals`
+    // keeps plugin confirm/alert dialogs functional (a headless plugin
+    // UX needs *some* user question channel).
+    iframe.setAttribute('sandbox', 'allow-scripts allow-modals');
     this.frames.set(key, {
       iframe,
       pluginId,
       surface,
       ready: false,
       initSent: false,
+      lastTouched: Date.now(),
     });
     // The contentWindow is only addressable after insertion; index lazily
     // on the first message via the windowIndex built at load time.
@@ -97,12 +113,17 @@ class PluginHost {
     return iframe;
   }
 
-  /** Attach a visible view frame into a container element. */
+  /** Attach a view frame (or un-park its kept-alive instance). */
   attachViewFrame(container: HTMLElement, pluginId: string, viewId: string): void {
     const surface = `view:${viewId}`;
     const key = `${pluginId}::${surface}`;
     const existing = this.frames.get(key);
     if (existing) {
+      existing.lastTouched = Date.now();
+      existing.iframe.style.display = '';
+      existing.iframe.style.border = '0';
+      existing.iframe.style.width = '100%';
+      existing.iframe.style.height = '100%';
       if (existing.iframe.parentElement !== container) {
         container.replaceChildren(existing.iframe);
       }
@@ -110,28 +131,65 @@ class PluginHost {
     }
     const frame = this.createFrame(pluginId, surface, false);
     container.replaceChildren(frame);
+    this.evictParkedFrames();
   }
 
-  /** Detach a view frame (keeps logic frames alive). */
+  /** Detach a view frame by *parking* it: the iframe is hidden but kept
+   * alive so switching tabs never reloads plugin state. Older parked
+   * frames are evicted past MAX_PARKED_VIEW_FRAMES. */
   detachViewFrame(pluginId: string, viewId: string): void {
     const key = `${pluginId}::view:${viewId}`;
     const frame = this.frames.get(key);
-    if (frame) {
-      frame.iframe.remove();
-      if (frame.iframe.contentWindow) this.windowIndex.delete(frame.iframe.contentWindow);
-      this.frames.delete(key);
+    if (!frame) return;
+    const parking = document.getElementById('wz-logic-frames');
+    frame.iframe.style.display = 'none';
+    if (parking && frame.iframe.parentElement !== parking) {
+      parking.appendChild(frame.iframe);
+    }
+    this.evictParkedFrames();
+  }
+
+  /** Permanently destroy a frame (state change, eviction). */
+  private destroyFrame(key: string): void {
+    const frame = this.frames.get(key);
+    if (!frame) return;
+    frame.iframe.remove();
+    if (frame.iframe.contentWindow) this.windowIndex.delete(frame.iframe.contentWindow);
+    this.frames.delete(key);
+  }
+
+  private evictParkedFrames(): void {
+    const parked = [...this.frames.entries()]
+      .filter(
+        ([key, f]) =>
+          f.surface.startsWith('view:') &&
+          key !== undefined &&
+          f.iframe.parentElement?.id === 'wz-logic-frames',
+      )
+      .sort((a, b) => a[1].lastTouched - b[1].lastTouched);
+    for (const [key] of parked.slice(0, Math.max(0, parked.length - MAX_PARKED_VIEW_FRAMES))) {
+      this.destroyFrame(key);
     }
   }
 
-  /** Ensure the hidden logic frame for a plugin exists (activates it). */
-  async ensureLogicFrame(pluginId: string): Promise<void> {
+  /** Ensure the hidden logic frame for a plugin exists (activates it).
+   * Concurrent calls share one activation — two parallel activations of
+   * the same plugin would double-execute plugin code. */
+  ensureLogicFrame(pluginId: string): Promise<void> {
     const key = `${pluginId}::logic`;
-    if (this.frames.has(key)) return;
-    const host = document.getElementById('wz-logic-frames');
-    if (!host) throw new Error('logic frame container missing');
-    const frame = this.createFrame(pluginId, 'logic', true);
-    host.appendChild(frame);
-    await this.waitReady(pluginId, 'logic');
+    if (this.frames.get(key)?.ready) return Promise.resolve();
+    const inFlight = this.logicActivations.get(pluginId);
+    if (inFlight) return inFlight;
+    const activation = (async () => {
+      if (this.frames.get(key)?.ready) return;
+      const host = document.getElementById('wz-logic-frames');
+      if (!host) throw new Error('logic frame container missing');
+      const frame = this.createFrame(pluginId, 'logic', true);
+      host.appendChild(frame);
+      await this.waitReady(pluginId, 'logic');
+    })().finally(() => this.logicActivations.delete(pluginId));
+    this.logicActivations.set(pluginId, activation);
+    return activation;
   }
 
   private waitReady(pluginId: string, surface: string, timeoutMs = 15_000): Promise<void> {
@@ -175,16 +233,32 @@ class PluginHost {
         break;
       }
       case 'wz-manifest-request': {
-        const manifest = this.manifestCache.get(frame.pluginId);
-        if (manifest) post({ type: 'wz-manifest', manifest });
+        const serve = (manifest: PluginManifest | null) => {
+          if (!manifest) {
+            post({ type: 'wz-manifest', manifest: null });
+            return;
+          }
+          // apiVersion handshake (spec §11): a plugin built for an
+          // unsupported host API must not run — it would fail in
+          // unpredictable partial ways.
+          const major = String(manifest.apiVersion).split('.')[0];
+          if (!SUPPORTED_API_VERSIONS.has(major)) {
+            this.onPluginError?.(
+              frame.pluginId,
+              `requires bridge API ${manifest.apiVersion} (supported: 1.x)`,
+            );
+            post({ type: 'wz-manifest', manifest: null });
+            return;
+          }
+          this.manifestCache.set(manifest.id, manifest);
+          post({ type: 'wz-manifest', manifest });
+        };
+        const cached = this.manifestCache.get(frame.pluginId);
+        if (cached) serve(cached);
         else {
-          // Fetch from the kernel and cache.
           void rpc<{ manifest: PluginManifest }>(Methods.plugins.get, { id: frame.pluginId })
-            .then((info) => {
-              this.manifestCache.set(frame.pluginId, info.manifest);
-              post({ type: 'wz-manifest', manifest: info.manifest });
-            })
-            .catch(() => post({ type: 'wz-manifest', manifest: null }));
+            .then((info) => serve(info.manifest))
+            .catch(() => serve(null));
         }
         break;
       }
@@ -250,12 +324,12 @@ class PluginHost {
     });
   }
 
-  /** Kernel push routing: deliver to all frames of the target plugin.
-   * pty/net pushes are session-scoped; the SDK filters by sessionId. */
+  /** Kernel push routing: with `plugin` → that plugin's frames only;
+   * without an owner (e.g. `mcp-status`) → every frame, which filter by
+   * topic/sessionId themselves. Unicast keeps pty/net streams private. */
   routePush(msg: PushMessage) {
-    if (!msg.plugin) return;
     for (const frame of this.frames.values()) {
-      if (frame.pluginId !== msg.plugin) continue;
+      if (msg.plugin && frame.pluginId !== msg.plugin) continue;
       frame.iframe.contentWindow?.postMessage(
         { type: 'wz-push', topic: msg.topic, data: msg.data },
         '*',
@@ -277,10 +351,9 @@ class PluginHost {
   onPluginStateChanged(pluginId: string) {
     for (const [key, frame] of [...this.frames.entries()]) {
       if (frame.pluginId !== pluginId) continue;
-      frame.iframe.remove();
-      if (frame.iframe.contentWindow) this.windowIndex.delete(frame.iframe.contentWindow);
-      this.frames.delete(key);
+      this.destroyFrame(key);
     }
+    this.logicActivations.delete(pluginId);
     this.manifestCache.delete(pluginId);
   }
 }

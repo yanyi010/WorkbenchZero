@@ -164,6 +164,7 @@ export type PermissionName =
   | 'clipboard:write'
   | 'notification'
   | 'secrets:read'
+  | 'secrets:write'
   | 'ai:invoke'
   | 'mcp:connect'
   | 'system:open';
@@ -179,6 +180,7 @@ export const ALL_PERMISSIONS: PermissionName[] = [
   'clipboard:write',
   'notification',
   'secrets:read',
+  'secrets:write',
   'ai:invoke',
   'mcp:connect',
   'system:open',
@@ -196,6 +198,7 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionName, string> = {
   'clipboard:write': 'Write the clipboard',
   notification: 'Show notifications',
   'secrets:read': 'Read stored secrets',
+  'secrets:write': 'Store and delete secrets',
   'ai:invoke': 'Invoke AI providers',
   'mcp:connect': 'Connect to MCP servers',
   'system:open': 'Open files, folders and links outside the app',
@@ -513,6 +516,9 @@ export const Methods = {
     register: 'workspace.register',
     remove: 'workspace.remove',
     saveLayout: 'workspace.saveLayout',
+    backupNow: 'workspace.backupNow',
+    listBackups: 'workspace.listBackups',
+    restoreBackup: 'workspace.restoreBackup',
   },
   settings: {
     get: 'settings.get',
@@ -697,10 +703,21 @@ export interface NetPush {
   };
 }
 
-/** Kernel → plugin push payload for AI tool calls (topic `plugin-push`). */
+/** Kernel → plugin push payload for AI tool calls (topic `plugin-push`).
+ * `requestId` is an unguessable UUID assigned by the kernel; the owning
+ * plugin must echo it back in `ai.toolResult`. */
 export interface AiToolCallPush {
   kind: 'ai-tool-call';
   tool: string;
   args: Record<string, unknown>;
-  requestId: number;
+  requestId: string;
+}
+
+/** A workspace snapshot (`workspace.listBackups` / `workspace.backupNow`). */
+export interface SnapshotInfo {
+  /** Timestamp id (`yyyymmdd-hhmmss`); the restore key. */
+  id: string;
+  createdAt: string;
+  path: string;
+  bytes: number;
 }
