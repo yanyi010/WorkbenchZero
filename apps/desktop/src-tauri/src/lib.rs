@@ -97,7 +97,8 @@ fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     let bad_request = |msg: &str| -> Response<Cow<'static, [u8]>> {
         response(400, "text/plain", msg.as_bytes().to_vec())
     };
-    let not_found = || -> Response<Cow<'static, [u8]>> { response(404, "text/plain", b"not found".to_vec()) };
+    let not_found =
+        || -> Response<Cow<'static, [u8]>> { response(404, "text/plain", b"not found".to_vec()) };
 
     let rest = uri.strip_prefix(&format!("{WZP_SCHEME}://")).unwrap_or("");
     let (host, path_query) = match rest.split_once('/') {
@@ -148,8 +149,12 @@ fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     };
     let mime = mime_for(&canonical);
     let mut resp = response(200, mime, bytes);
-    resp.headers_mut()
-        .insert("Cache-Control", "no-cache".parse().unwrap_or_else(|_| tauri::http::HeaderValue::from_static("no-cache")));
+    resp.headers_mut().insert(
+        "Cache-Control",
+        "no-cache"
+            .parse()
+            .unwrap_or_else(|_| tauri::http::HeaderValue::from_static("no-cache")),
+    );
     if mime.starts_with("text/html") {
         // Strict plugin sandbox: scripts only from the plugin origin, no
         // direct network from plugin frames (bridged through the kernel).

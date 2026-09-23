@@ -405,16 +405,29 @@ fn main() {
     }
 }
 
+fn dirs_config_path() -> PathBuf {
+    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+        if !xdg.is_empty() {
+            return PathBuf::from(xdg)
+                .join("workbench-zero")
+                .join("mcp-server.json");
+        }
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home)
+            .join(".config")
+            .join("workbench-zero")
+            .join("mcp-server.json");
+    }
+    PathBuf::from("wz-mcp.json")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn server(sub: &str) -> Server {
-        let base = std::env::temp_dir().join(format!(
-            "wz-mcp-test-{}-{}",
-            std::process::id(),
-            sub
-        ));
+        let base = std::env::temp_dir().join(format!("wz-mcp-test-{}-{}", std::process::id(), sub));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(base.join("docs")).unwrap();
         std::fs::write(base.join("docs").join("a.md"), "hello").unwrap();
@@ -431,7 +444,11 @@ mod tests {
         let ok = s
             .call(TOOL_WORKSPACE_FILES, &json!({ "subdir": "docs" }))
             .unwrap();
-        assert!(ok["files"].as_array().unwrap().iter().any(|f| f["path"] == "docs/a.md"));
+        assert!(ok["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"] == "docs/a.md"));
         // `..` and absolute paths must be refused.
         for subdir in ["..", "../..", "./..", "/etc", "docs/../../.."] {
             let r = s.call(TOOL_WORKSPACE_FILES, &json!({ "subdir": subdir }));
@@ -446,21 +463,4 @@ mod tests {
             assert!(s.call(TOOL_MEMO_READ, &json!({ "name": name })).is_err());
         }
     }
-}
-
-fn dirs_config_path() -> PathBuf {
-    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
-        if !xdg.is_empty() {
-            return PathBuf::from(xdg)
-                .join("workbench-zero")
-                .join("mcp-server.json");
-        }
-    }
-    if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home)
-            .join(".config")
-            .join("workbench-zero")
-            .join("mcp-server.json");
-    }
-    PathBuf::from("wz-mcp.json")
 }

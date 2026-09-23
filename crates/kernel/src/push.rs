@@ -8,7 +8,7 @@
 //! (mirrored in `@workbench-zero/protocol`); every message carries a
 //! monotonically increasing `seq` so the UI can detect dropped batches.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -26,16 +26,15 @@ pub struct PushHub {
     queue: SharedQueue,
     sink: PushSink,
     seq: Arc<AtomicU64>,
-    /// False only if the flush thread could not be spawned (extreme resource
-    /// exhaustion): pushes still enqueue and `flush()` still works.
-    flusher_running: AtomicBool,
 }
 
 impl PushHub {
     pub fn new(sink: PushSink) -> Self {
         let queue: SharedQueue = Arc::new(Mutex::new(Vec::new()));
         let seq = Arc::new(AtomicU64::new(1));
-        let running = {
+        // If the flusher fails to spawn (extreme resource exhaustion),
+        // pushes still enqueue and `flush()` at shutdown still drains them.
+        let _ = {
             let thread_queue = Arc::clone(&queue);
             let thread_sink = sink.clone();
             std::thread::Builder::new()
@@ -47,18 +46,11 @@ impl PushHub {
                         (thread_sink)(&batch);
                     }
                 })
-                .map(|_| true)
-                .unwrap_or_else(|e| {
+                .map_err(|e| {
                     tracing::error!(error = %e, "push flush thread failed to spawn; remote UI updates will only flush on shutdown");
-                    false
                 })
         };
-        Self {
-            queue,
-            sink,
-            seq,
-            flusher_running: AtomicBool::new(running),
-        }
+        Self { queue, sink, seq }
     }
 
     /// Enqueue a message. Never panics, never blocks producers (overflow
@@ -75,7 +67,11 @@ impl PushHub {
         if queue.len() >= MAX_QUEUE {
             let drop = queue.len() - MAX_BATCH + 1;
             queue.drain(..drop);
-            tracing::warn!(dropped = drop, topic, "push queue overflow; oldest messages dropped");
+            tracing::warn!(
+                dropped = drop,
+                topic,
+                "push queue overflow; oldest messages dropped"
+            );
         }
         queue.push(msg);
     }

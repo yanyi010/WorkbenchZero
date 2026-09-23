@@ -47,8 +47,8 @@ fn backups_root(ws: &Workspace) -> PathBuf {
 /// self-contained even if plugin data dirs contain links.
 fn copy_tree(src: &Path, dst: &Path) -> Result<(), WorkspaceError> {
     for entry in walkdir::WalkDir::new(src).follow_links(false) {
-        let entry = entry
-            .map_err(|e| WorkspaceError::Corrupt(format!("snapshot walk failed: {e}")))?;
+        let entry =
+            entry.map_err(|e| WorkspaceError::Corrupt(format!("snapshot walk failed: {e}")))?;
         let rel = entry
             .path()
             .strip_prefix(src)
@@ -121,7 +121,10 @@ pub fn create_snapshot(
     if ws.sqlite_path.exists() {
         let sql = format!(
             "VACUUM INTO '{}'",
-            dest.join("index.sqlite").display().to_string().replace('\'', "''")
+            dest.join("index.sqlite")
+                .display()
+                .to_string()
+                .replace('\'', "''")
         );
         conn.execute_batch(&sql)
             .map_err(|e| WorkspaceError::Corrupt(format!("index backup failed: {e}")))?;
@@ -184,21 +187,18 @@ pub fn prune_snapshots(ws: &Workspace, keep: usize) -> Result<usize, WorkspaceEr
 /// must have closed the workspace's live SQLite connection first.
 pub fn restore_snapshot(ws: &Workspace, id: &str) -> Result<(), WorkspaceError> {
     // Snapshot ids are timestamp names; refuse anything that could traverse.
-    if id.is_empty()
-        || !id
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-')
-    {
-        return Err(WorkspaceError::Corrupt(format!("invalid snapshot id `{id}`")));
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit() || c == '-') {
+        return Err(WorkspaceError::Corrupt(format!(
+            "invalid snapshot id `{id}`"
+        )));
     }
     let snapshot = backups_root(ws).join(id);
     let manifest_path = snapshot.join("manifest.json");
     let raw = std::fs::read_to_string(&manifest_path).map_err(|_| {
         WorkspaceError::Corrupt(format!("snapshot `{id}` missing or unreadable manifest"))
     })?;
-    let manifest: SnapshotManifest = serde_json::from_str(&raw).map_err(|_| {
-        WorkspaceError::Corrupt(format!("snapshot `{id}` has a corrupt manifest"))
-    })?;
+    let manifest: SnapshotManifest = serde_json::from_str(&raw)
+        .map_err(|_| WorkspaceError::Corrupt(format!("snapshot `{id}` has a corrupt manifest")))?;
     if manifest.schema_version > WORKSPACE_SCHEMA_VERSION {
         return Err(WorkspaceError::NewerSchema(
             manifest.schema_version,
@@ -297,7 +297,8 @@ mod tests {
         restore_snapshot(&ws, &snap.id).unwrap();
 
         assert_eq!(ws.load_layout()["tabs"][0], "a");
-        let raw = std::fs::read_to_string(ws.state_root.join("zero.memo").join("state.json")).unwrap();
+        let raw =
+            std::fs::read_to_string(ws.state_root.join("zero.memo").join("state.json")).unwrap();
         assert_eq!(raw, r#"{"counter": 7}"#);
         // Index came back and is healthy.
         let conn = crate::open_index_db(&ws.sqlite_path).unwrap();
@@ -316,7 +317,8 @@ mod tests {
         for i in 0..5 {
             let snap = create_snapshot(&ws, &conn, 12).unwrap();
             // Make ids unique even within the same second.
-            let renamed = PathBuf::from(&snap.path).with_file_name(format!("fake-{i}-{id}", id = snap.id));
+            let renamed =
+                PathBuf::from(&snap.path).with_file_name(format!("fake-{i}-{id}", id = snap.id));
             std::fs::rename(&snap.path, &renamed).unwrap();
         }
         let pruned = prune_snapshots(&ws, 3).unwrap();

@@ -305,10 +305,7 @@ fn persist(path: &Path, map: &BTreeMap<String, String>) -> Result<(), SecretsErr
     // Restrictive permissions from creation: write to a unique tmp file, set
     // 0600 before the atomic rename so a secrets file never exists with wider
     // permissions at any point in time.
-    let tmp = path.with_file_name(format!(
-        ".secrets.json.tmp-{}",
-        std::process::id()
-    ));
+    let tmp = path.with_file_name(format!(".secrets.json.tmp-{}", std::process::id()));
     std::fs::write(&tmp, serde_json::to_string(map)?)?;
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))?;

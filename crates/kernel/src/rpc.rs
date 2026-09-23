@@ -444,7 +444,9 @@ pub fn dispatch(
                 return Err(KernelError::Message(e.to_string()));
             }
             kernel.sync_registries();
-            kernel.events.emit("plugin.enabled", None, json!({ "id": id }));
+            kernel
+                .events
+                .emit("plugin.enabled", None, json!({ "id": id }));
             Ok(Value::Null)
         }
         "plugins.logs" => {

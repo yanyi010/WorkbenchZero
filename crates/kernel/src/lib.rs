@@ -652,7 +652,10 @@ impl Kernel {
     }
 
     fn backup_enabled(&self) -> bool {
-        !matches!(self.settings.get("core.backup.enabled"), serde_json::Value::Bool(false))
+        !matches!(
+            self.settings.get("core.backup.enabled"),
+            serde_json::Value::Bool(false)
+        )
     }
 
     fn backup_keep(&self) -> usize {
@@ -764,11 +767,13 @@ impl Kernel {
         let ws_id = state.workspace.record.id.clone();
         let snap_id = match id {
             Some(v) => v.to_string(),
-            None => wz_workspace::backup::list_snapshots(&state.workspace)
-                .into_iter()
-                .next()
-                .ok_or_else(|| KernelError::Message("no snapshots to restore".into()))?
-                .id,
+            None => {
+                wz_workspace::backup::list_snapshots(&state.workspace)
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| KernelError::Message("no snapshots to restore".into()))?
+                    .id
+            }
         };
         // Drop the live index connection before swapping the directory.
         *self.workspace_state.write_or_recover() = None;

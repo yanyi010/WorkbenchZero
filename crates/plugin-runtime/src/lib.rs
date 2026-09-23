@@ -1035,7 +1035,8 @@ pub fn permission_drift(current: &Grants, requested: &Grants) -> Vec<String> {
                 //     access — this MUST require renewed approval.
                 //   requested Some(..) vs current None / both None: narrowing
                 //     or equal — no drift.
-                let widens = |req: &Option<Vec<String>>, cur: &Option<Vec<String>>| match (req, cur) {
+                let widens = |req: &Option<Vec<String>>, cur: &Option<Vec<String>>| match (req, cur)
+                {
                     (Some(r), Some(c)) => r.iter().any(|x| !c.contains(x)),
                     (None, Some(_)) => true,
                     _ => false,
@@ -1387,7 +1388,10 @@ mod tests {
         let mgr2 = manager(&base);
         mgr2.discover().unwrap();
         // Plugin is rediscovered from disk (safe reset), corrupt bytes quarantined.
-        assert_eq!(mgr2.get("test.alpha").unwrap().state, PluginState::Discovered);
+        assert_eq!(
+            mgr2.get("test.alpha").unwrap().state,
+            PluginState::Discovered
+        );
         let quarantined: Vec<_> = std::fs::read_dir(&base)
             .unwrap()
             .flatten()

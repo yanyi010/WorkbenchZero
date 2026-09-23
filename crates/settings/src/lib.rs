@@ -80,9 +80,7 @@ pub struct SettingsService {
 /// corrupt settings file must never prevent the app from starting — the
 /// affected scope just falls back to defaults.
 fn load_map(path: &Path) -> Result<HashMap<String, serde_json::Value>, SettingsError> {
-    match load_json(path)
-        .map_err(|e| SettingsError::Io(std::io::Error::other(e.to_string())))?
-    {
+    match load_json(path).map_err(|e| SettingsError::Io(std::io::Error::other(e.to_string())))? {
         JsonLoad::Loaded(m) | JsonLoad::RecoveredFromTmp(m) => Ok(m),
         JsonLoad::Missing => Ok(HashMap::new()),
         JsonLoad::Corrupt { quarantined_to } => {

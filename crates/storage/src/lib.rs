@@ -188,7 +188,10 @@ impl PluginStateStore {
 
     /// Persist the in-memory map durably. The write lock must be held by the
     /// caller so the map and the file never diverge.
-    fn persist_locked(map: &HashMap<String, serde_json::Value>, path: &Path) -> Result<(), StorageError> {
+    fn persist_locked(
+        map: &HashMap<String, serde_json::Value>,
+        path: &Path,
+    ) -> Result<(), StorageError> {
         let payload = serde_json::to_string_pretty(map)?;
         atomic_write_str(path, &payload)?;
         Ok(())
@@ -343,7 +346,10 @@ mod tests {
         store.set("k", serde_json::json!("good")).unwrap();
         // A write larger than MAX_STATE_VALUE is rejected outright…
         assert!(store
-            .set("k", serde_json::json!("x".repeat((MAX_STATE_VALUE + 1) as usize)))
+            .set(
+                "k",
+                serde_json::json!("x".repeat((MAX_STATE_VALUE + 1) as usize))
+            )
             .is_err());
         // …and the old value survives.
         assert_eq!(store.get("k"), Some(serde_json::json!("good")));

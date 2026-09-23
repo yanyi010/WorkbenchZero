@@ -334,7 +334,10 @@ mod tests {
         match r {
             JsonLoad::Corrupt { quarantined_to } => {
                 assert!(quarantined_to.exists());
-                assert_eq!(std::fs::read_to_string(&quarantined_to).unwrap(), "{not json");
+                assert_eq!(
+                    std::fs::read_to_string(&quarantined_to).unwrap(),
+                    "{not json"
+                );
                 assert!(!path.exists());
             }
             other => panic!("expected quarantine, got {other:?}"),

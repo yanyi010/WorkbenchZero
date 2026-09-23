@@ -134,7 +134,11 @@ impl EventBus {
                     // emitter or letting memory grow without bound.
                     let dropped = self.state.dropped.fetch_add(1, Ordering::Relaxed) + 1;
                     if dropped % 128 == 1 {
-                        tracing::warn!(event = name, dropped, "subscriber queue full; events dropped");
+                        tracing::warn!(
+                            event = name,
+                            dropped,
+                            "subscriber queue full; events dropped"
+                        );
                     }
                 }
                 Err(mpsc::error::TrySendError::Closed(_)) => dead.push(idx),

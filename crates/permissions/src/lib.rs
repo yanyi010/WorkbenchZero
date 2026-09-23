@@ -18,8 +18,8 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use wz_common::RwLockRecover;
 use thiserror::Error;
+use wz_common::RwLockRecover;
 
 #[derive(Debug, Error)]
 pub enum PermissionError {

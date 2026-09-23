@@ -193,7 +193,6 @@ impl WorkspaceManager {
         if !root.is_dir() {
             return Err(WorkspaceError::NotADirectory(root));
         }
-        let workbench = root.join(".workbench");
         let meta = Self::read_meta(&root)?;
         if meta.schema_version > WORKSPACE_SCHEMA_VERSION {
             return Err(WorkspaceError::NewerSchema(
@@ -326,7 +325,10 @@ pub fn open_index_db(path: &Path) -> Result<rusqlite::Connection, WorkspaceError
     open_index_db_attempt(path, true)
 }
 
-fn open_index_db_attempt(path: &Path, allow_rebuild: bool) -> Result<rusqlite::Connection, WorkspaceError> {
+fn open_index_db_attempt(
+    path: &Path,
+    allow_rebuild: bool,
+) -> Result<rusqlite::Connection, WorkspaceError> {
     match try_open_index_db(path) {
         Ok(conn) => Ok(conn),
         Err(reason) if allow_rebuild => {
@@ -519,7 +521,11 @@ mod tests {
             .flatten()
             .filter(|e| e.file_name().to_string_lossy().starts_with("index.bak-"))
             .collect();
-        assert_eq!(backups.len(), 1, "corrupt db must be backed up, got {backups:?}");
+        assert_eq!(
+            backups.len(),
+            1,
+            "corrupt db must be backed up, got {backups:?}"
+        );
         let conn = open_index_db(&path).unwrap();
         let integrity: String = conn
             .pragma_query_value(None, "integrity_check", |r| r.get(0))

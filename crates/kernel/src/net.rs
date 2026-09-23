@@ -216,7 +216,9 @@ pub fn fetch_stream(
 ) -> KResult<Value> {
     check_permission(kernel, caller, url)?;
     if kernel.net.client.is_none() {
-        return Err(KernelError::Message("network capability unavailable".into()));
+        return Err(KernelError::Message(
+            "network capability unavailable".into(),
+        ));
     }
     let target_plugin = caller.plugin_id.clone();
     let stream_id = format!("net-{}", kernel.net.next.fetch_add(1, Ordering::SeqCst));

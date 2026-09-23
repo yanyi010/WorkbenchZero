@@ -282,7 +282,8 @@ impl McpManager {
                     .drain()
                     .collect();
                 for (_, tx) in leftover {
-                    let _ = tx.send(json!({"error": {"message": "mcp server closed the connection"}}));
+                    let _ =
+                        tx.send(json!({"error": {"message": "mcp server closed the connection"}}));
                 }
             })
             .map_err(|e| KernelError::Message(format!("cannot spawn reader: {e}")))?;
