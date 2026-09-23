@@ -71,7 +71,7 @@ async function create(name, opts) {
         apiVersion: '1',
         description: 'A new EigenDesk plugin.',
         publisher,
-        trust: 'community',
+        trust: 'sandboxed',
         permissions: [],
         activationEvents: [`onCommand:${id}.hello`],
         contributes: {
@@ -341,8 +341,8 @@ async function validatePlugin(dir) {
   if (manifest.id && !/^[a-z0-9-]+\.[a-z0-9-]+$/.test(manifest.id)) {
     problems.push(`id must be publisher.name (got "${manifest.id}")`);
   }
-  if (manifest.trust && !['trusted', 'community'].includes(manifest.trust)) {
-    problems.push(`trust must be "trusted" or "community" (got "${manifest.trust}")`);
+  if (manifest.trust && !['trusted', 'sandboxed'].includes(manifest.trust)) {
+    problems.push(`trust must be "trusted" or "sandboxed" (got "${manifest.trust}")`);
   }
   for (const perm of manifest.permissions ?? []) {
     if (!KNOWN_PERMISSIONS.has(perm)) problems.push(`unknown permission: ${perm}`);

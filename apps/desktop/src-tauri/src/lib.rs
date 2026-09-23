@@ -197,7 +197,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![kernel_rpc, set_global_capture])
         .setup(move |app| {
-            let bundled_dir = resource_dir(app.handle()).map(|r| r.join("plugins"));
+            // Tauri maps the `resources/**/*` config onto
+            // `<resource_dir>/resources/**` (both in dev and in the deb/
+            // AppImage layouts).
+            let bundled_dir =
+                resource_dir(app.handle()).map(|r| r.join("resources").join("plugins"));
             let kernel = Kernel::bootstrap(
                 KernelConfig {
                     app_version: version,
@@ -236,4 +240,119 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running EigenDesk");
+}
+
+// ---------------------------------------------------------------------------
+// Tests: the edp:// protocol handler is security-critical (plugin sandbox
+// boundary, ADR-0002) — path containment and CSP are tested directly.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_kernel() -> Arc<Kernel> {
+        let base = std::env::temp_dir().join(format!(
+            "ed-edp-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .elapsed()
+                .unwrap()
+                .subsec_nanos()
+        ));
+        let bundled = base.join("resources/plugins");
+        let pkg = bundled.join("test.demo");
+        std::fs::create_dir_all(pkg.join("dist")).unwrap();
+        std::fs::write(
+            pkg.join("plugin.json"),
+            r#"{"id":"test.demo","name":"Demo","version":"0.1.0","apiVersion":"1",
+                "publisher":"test","trust":"sandboxed","permissions":[],
+                "activationEvents":["onStartup"],"contributes":{"commands":[]}}"#,
+        )
+        .unwrap();
+        std::fs::write(pkg.join("entry.html"), "<html><body>hi</body></html>").unwrap();
+        std::fs::write(pkg.join("dist/main.js"), "console.log(1)").unwrap();
+        std::fs::write(base.join("secret.txt"), "top secret").unwrap();
+
+        Kernel::bootstrap(
+            KernelConfig {
+                app_version: "test".into(),
+                bundled_dir: Some(bundled),
+                data_override: Some(base.join("data")),
+                safe_mode: false,
+            },
+            Arc::new(|_batch: &[PushMessage]| {}),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn edp_serves_entry_with_strict_csp() {
+        let kernel = test_kernel();
+        let resp = serve_edp(&kernel, "edp://test.demo/entry.html?surface=logic");
+        assert_eq!(resp.status(), 200);
+        assert_eq!(
+            resp.headers().get("Content-Type").unwrap(),
+            "text/html; charset=utf-8"
+        );
+        let csp = resp.headers().get("Content-Security-Policy").unwrap();
+        let csp = csp.to_str().unwrap();
+        assert!(
+            csp.contains("connect-src 'none'"),
+            "CSP must block direct network"
+        );
+        assert!(
+            csp.contains("script-src 'self'"),
+            "CSP must restrict scripts"
+        );
+    }
+
+    #[test]
+    fn edp_serves_bundled_assets() {
+        let kernel = test_kernel();
+        let resp = serve_edp(&kernel, "edp://test.demo/dist/main.js");
+        assert_eq!(resp.status(), 200);
+        assert_eq!(
+            resp.headers().get("Content-Type").unwrap(),
+            "text/javascript; charset=utf-8"
+        );
+    }
+
+    #[test]
+    fn edp_rejects_path_traversal() {
+        let kernel = test_kernel();
+        // `..` must not escape the plugin package.
+        for uri in [
+            "edp://test.demo/../secret.txt",
+            "edp://test.demo/dist/../../secret.txt",
+            "edp://test.demo/..%2Fsecret.txt",
+        ] {
+            let resp = serve_edp(&kernel, uri);
+            assert!(
+                resp.status() == 400 || resp.status() == 404,
+                "traversal `{uri}` must be rejected, got {}",
+                resp.status()
+            );
+        }
+    }
+
+    #[test]
+    fn edp_unknown_plugin_is_404() {
+        let kernel = test_kernel();
+        let resp = serve_edp(&kernel, "edp://other.plugin/entry.html");
+        assert_eq!(resp.status(), 404);
+    }
+
+    #[test]
+    fn edp_invalid_plugin_id_is_400() {
+        let kernel = test_kernel();
+        let resp = serve_edp(&kernel, "edp://../etc/entry.html");
+        assert_eq!(resp.status(), 400);
+    }
+
+    #[test]
+    fn edp_empty_path_is_rejected() {
+        let kernel = test_kernel();
+        let resp = serve_edp(&kernel, "edp://test.demo/");
+        assert_eq!(resp.status(), 400);
+    }
 }

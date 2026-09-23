@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev:app",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build:app",
+    "beforeBuildCommand": "node ../../scripts/build.mjs && vite build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -28,7 +28,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage", "nsis", "dmg"],
+    "targets": [
+      "deb",
+      "appimage",
+      "nsis",
+      "dmg"
+    ],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
@@ -37,7 +42,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["resources/**/*"],
+    "resources": [
+      "resources/**/*"
+    ],
     "category": "Productivity",
     "shortDescription": "Local-first extensible personal workstation",
     "longDescription": "EigenDesk is a fast, local-first, extensible personal workstation for researchers, developers and power users. Almost all end-user functionality is a plugin; the kernel coordinates capabilities."
@@ -46,7 +53,7 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyNTNGQUY2QkMzMjcyOUYKUldTZmNqSzg5dnBUa3R2ZG5TUVVCVGc5ZndLY1BsTTZ1bWgrK2dDM2F4SXBYZnY2Y2xKck9oenkK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE4QjFEQjUzOUIxRUY5RDUKUldUVitSNmJVOXV4R0UvZjB6NmdzWGQrbGFFVTdFRlcyYnlvcTFENCtRYkE3ZHdVbVU5c1AvMDUK"
     }
   }
 }
