@@ -998,6 +998,48 @@ mod tests {
         dir
     }
 
+    /// A `.edplugin.zip` as `wb plugin pack` writes it: STORED entries,
+    /// fixed timestamps, plugin.json at the archive root.
+    #[test]
+    fn install_from_edplugin_zip() {
+        let base = temp();
+        let src = write_plugin(&base.join("pkg-src"), "test.zipped", "1.0.0", r#"["notification"]"#);
+
+        let zip_path = base.join("test-zipped-1.0.0.edplugin.zip");
+        {
+            let file = std::fs::File::create(&zip_path).unwrap();
+            let mut writer = zip::ZipWriter::new(file);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+            for name in ["plugin.json", "entry.html"] {
+                writer.start_file(name, options).unwrap();
+                std::io::Write::write_all(&mut writer, &std::fs::read(src.join(name)).unwrap()).unwrap();
+            }
+            writer.finish().unwrap();
+        }
+
+        let mgr = manager(&base);
+        let info = mgr.install_from(zip_path.to_str().unwrap()).unwrap();
+        assert_eq!(info.manifest.id, "test.zipped");
+        assert_eq!(info.state, PluginState::Installed);
+
+        // A zip without plugin.json is rejected with a package error.
+        let bad = base.join("bad.edplugin.zip");
+        {
+            let file = std::fs::File::create(&bad).unwrap();
+            let mut writer = zip::ZipWriter::new(file);
+            writer
+                .start_file("readme.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"not a plugin").unwrap();
+            writer.finish().unwrap();
+        }
+        assert!(matches!(
+            mgr.install_from(bad.to_str().unwrap()),
+            Err(PluginError::Package(_))
+        ));
+    }
+
     #[test]
     fn plugin_id_format() {
         assert!(valid_plugin_id("workbench.memo"));

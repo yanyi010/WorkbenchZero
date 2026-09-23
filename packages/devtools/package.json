@@ -1,0 +1,15 @@
+{
+  "name": "@eigendesk/devtools",
+  "version": "0.1.0",
+  "description": "wb — the EigenDesk plugin developer CLI",
+  "type": "module",
+  "bin": {
+    "wb": "./src/wb.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
