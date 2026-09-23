@@ -54,7 +54,10 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1MzZGODY3NEI4OUQ0NjIKUldSaTFJbExaL2cyeFJFa2ViWjl2akJ5VGc1NTRqbVlra1dZd01EWjdHMkVNbFRrcGlWeUNuQWIK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1MzZGODY3NEI4OUQ0NjIKUldSaTFJbExaL2cyeFJFa2ViWjl2akJ5VGc1NTRqbVlra1dZd01EWjdHMkVNbFRrcGlWeUNuQWIK",
+      "endpoints": [
+        "https://github.com/yanyi010/WorkbenchZero/releases/latest/download/latest.json"
+      ]
     }
   },
   "mainBinaryName": "workbench-zero"
