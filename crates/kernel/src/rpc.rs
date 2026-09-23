@@ -148,6 +148,21 @@ pub fn dispatch(
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             Ok(Value::Null)
         }
+        "workspace.backupNow" => {
+            app_only(&caller)?;
+            let info = kernel.backup_now()?;
+            Ok(serde_json::to_value(info).unwrap_or(Value::Null))
+        }
+        "workspace.listBackups" => {
+            app_only(&caller)?;
+            Ok(serde_json::to_value(kernel.list_backups()?).unwrap_or(Value::Null))
+        }
+        "workspace.restoreBackup" => {
+            app_only(&caller)?;
+            let id = params.get("id").and_then(|v| v.as_str());
+            kernel.restore_backup(id)?;
+            Ok(Value::Null)
+        }
 
         // -- settings ------------------------------------------------------------
         "settings.describe" => Ok(json!(kernel.settings.descriptors())),

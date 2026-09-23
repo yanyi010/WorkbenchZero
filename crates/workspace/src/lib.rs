@@ -14,6 +14,8 @@
 //! known workspaces and recency. Schema changes use explicit migrations with
 //! backup before destructive steps (spec §69).
 
+pub mod backup;
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};

@@ -277,6 +277,10 @@ impl Kernel {
         // Watch plugin directories for changes (hot reload / installs).
         watcher::start(kernel.clone());
 
+        // Automatic snapshot maintenance (every 10 minutes; snapshot when
+        // the configured interval has elapsed, plus on workspace close).
+        kernel.start_background_tasks();
+
         let startup_ms = startup.finish();
         kernel
             .diagnostics
@@ -334,6 +338,36 @@ impl Kernel {
                 default: Some(serde_json::json!(true)),
                 enum_values: vec![],
                 scope: Scope::Workspace,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.enabled".into(),
+                r#type: SettingType::Boolean,
+                title: "Automatic workspace snapshots".into(),
+                description: Some("Point-in-time copies of workspace metadata and plugin state, kept in .workbench/backups/.".into()),
+                default: Some(serde_json::json!(true)),
+                enum_values: vec![],
+                scope: Scope::Global,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.keep".into(),
+                r#type: SettingType::Number,
+                title: "Snapshots kept per workspace".into(),
+                description: Some("Oldest snapshots are pruned beyond this count.".into()),
+                default: Some(serde_json::json!(10)),
+                enum_values: vec![],
+                scope: Scope::Global,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.intervalHours".into(),
+                r#type: SettingType::Number,
+                title: "Snapshot interval (hours)".into(),
+                description: Some("A snapshot is taken on open/close and periodically while running when the last one is older than this.".into()),
+                default: Some(serde_json::json!(24)),
+                enum_values: vec![],
+                scope: Scope::Global,
                 plugin_id: None,
             },
             SettingDescriptor {
@@ -607,6 +641,7 @@ impl Kernel {
             .map_err(|e| KernelError::Message(e.to_string()))?;
 
         *self.workspace_state.write_or_recover() = Some(state.clone());
+        self.backup_if_due(false);
         self.events.emit(
             "workspace.opened",
             None,
@@ -616,10 +651,148 @@ impl Kernel {
         Ok(state)
     }
 
+    fn backup_enabled(&self) -> bool {
+        !matches!(self.settings.get("core.backup.enabled"), serde_json::Value::Bool(false))
+    }
+
+    fn backup_keep(&self) -> usize {
+        self.settings.get("core.backup.keep").as_u64().unwrap_or(10) as usize
+    }
+
+    fn backup_interval_hours(&self) -> f64 {
+        self.settings
+            .get("core.backup.intervalHours")
+            .as_f64()
+            .filter(|h| *h > 0.0)
+            .unwrap_or(24.0)
+    }
+
+    /// Was the last snapshot older than the configured interval?
+    fn backup_due(&self, ws: &wz_workspace::Workspace) -> bool {
+        let Some(latest) = wz_workspace::backup::list_snapshots(ws).into_iter().next() else {
+            return true; // never snapshotted
+        };
+        let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(&latest.created_at) else {
+            return true;
+        };
+        let age = chrono::Utc::now() - parsed.with_timezone(&chrono::Utc);
+        age.to_std()
+            .map(|d| d.as_secs_f64() >= self.backup_interval_hours() * 3600.0)
+            .unwrap_or(true)
+    }
+
+    /// Snapshot the current workspace if backups are enabled and due
+    /// (or `force`). Never fails the caller: backups are a safety net,
+    /// not a gate.
+    fn backup_if_due(&self, force: bool) {
+        if !self.backup_enabled() || self.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
+        let Some(state) = self.current_workspace() else {
+            return;
+        };
+        if !force && !self.backup_due(&state.workspace) {
+            return;
+        }
+        let keep = self.backup_keep();
+        // Hold the index connection lock: backup must be consistent with
+        // in-flight writes (VACUUM INTO traverses the live DB).
+        let conn = state.conn.lock_or_recover();
+        match wz_workspace::backup::create_snapshot(&state.workspace, &conn, keep) {
+            Ok(snap) => {
+                self.events.emit(
+                    "backup.created",
+                    None,
+                    serde_json::json!({ "id": snap.id, "bytes": snap.bytes, "path": snap.path }),
+                );
+                tracing::info!(workspace = %state.workspace.record.id, snapshot = %snap.id, "workspace snapshot created");
+            }
+            Err(e) => {
+                // Transient failures (disk full, a plugin hammering the
+                // state tree) must not crash anything — log and prepare
+                // to retry at the next interval.
+                tracing::error!(error = %e, workspace = %state.workspace.record.id, "automatic workspace snapshot failed");
+                self.events.emit(
+                    "backup.failed",
+                    None,
+                    serde_json::json!({ "error": e.to_string() }),
+                );
+            }
+        }
+    }
+
+    /// Background maintenance: periodic snapshot checks. Runs on the
+    /// kernel's own runtime and holds a weak reference so it never
+    /// extends the kernel's lifetime.
+    fn start_background_tasks(self: &Arc<Self>) {
+        let weak = Arc::downgrade(self);
+        self.runtime.spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(600));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tick.tick().await;
+                let Some(kernel) = weak.upgrade() else { break };
+                if kernel.shutting_down.load(Ordering::SeqCst) {
+                    break;
+                }
+                if let Err(e) =
+                    tokio::task::spawn_blocking(move || kernel.backup_if_due(false)).await
+                {
+                    tracing::warn!(error = %e, "backup reaper join error");
+                }
+            }
+        });
+    }
+
+    /// Explicit snapshot (Settings surface "Backup now").
+    pub fn backup_now(&self) -> KResult<wz_workspace::backup::SnapshotInfo> {
+        let state = self.require_workspace()?;
+        let keep = self.backup_keep();
+        let conn = state.conn.lock_or_recover();
+        wz_workspace::backup::create_snapshot(&state.workspace, &conn, keep)
+            .map_err(|e| KernelError::Message(e.to_string()))
+    }
+
+    pub fn list_backups(&self) -> KResult<Vec<wz_workspace::backup::SnapshotInfo>> {
+        let state = self.require_workspace()?;
+        Ok(wz_workspace::backup::list_snapshots(&state.workspace))
+    }
+
+    /// Restore a snapshot: closes the workspace, swaps `.workbench`, reopens.
+    pub fn restore_backup(&self, id: Option<&str>) -> KResult<()> {
+        let state = self.require_workspace()?;
+        let ws_id = state.workspace.record.id.clone();
+        let snap_id = match id {
+            Some(v) => v.to_string(),
+            None => wz_workspace::backup::list_snapshots(&state.workspace)
+                .into_iter()
+                .next()
+                .ok_or_else(|| KernelError::Message("no snapshots to restore".into()))?
+                .id,
+        };
+        // Drop the live index connection before swapping the directory.
+        *self.workspace_state.write_or_recover() = None;
+        drop(state);
+        // Re-open transiently through the manager to resolve the workspace.
+        let ws = {
+            let mut mgr = self.workspaces.lock_or_recover();
+            mgr.open(&ws_id)
+                .map_err(|e| KernelError::Message(e.to_string()))?
+        };
+        wz_workspace::backup::restore_snapshot(&ws, &snap_id)
+            .map_err(|e| KernelError::Message(e.to_string()))?;
+        // Reopen fully (index rebuilds if needed by the hardened opener).
+        self.open_workspace(&ws_id)?;
+        Ok(())
+    }
+
     pub fn close_workspace(&self) -> KResult<()> {
         self.pty.kill_all();
         self.session.clear();
         self.net.abort_all();
+        // Final snapshot at the graceful point in the lifecycle — the
+        // session is drained and plugin state is settled.
+        self.backup_if_due(false);
         self.settings
             .set_workspace(None)
             .map_err(|e| KernelError::Message(e.to_string()))?;

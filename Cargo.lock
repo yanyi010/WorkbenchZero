@@ -6633,6 +6633,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "uuid",
+ "walkdir",
  "wz-common",
 ]
 
