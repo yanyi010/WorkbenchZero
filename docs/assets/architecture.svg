@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 820" role="img" aria-label="Architecture: shell, Rust kernel, sandboxed plugin iframes">
+  <defs>
+    <marker id="aArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#39404B"/>
+    </marker>
+    <marker id="aArrowA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5E8CFF"/>
+    </marker>
+    <style>
+      .t { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+      .m { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+  </defs>
+  <rect width="1600" height="820" fill="#0C0D10"/>
+
+  <!-- ══ tier 1: shell ═══════════════════════════════════════════ -->
+  <rect x="160" y="56" width="1280" height="150" rx="12" fill="#15171C" stroke="#23262E"/>
+  <text class="t" x="196" y="98" font-size="15" font-weight="600" fill="#ECEDEF">shell — TypeScript / React on Tauri</text>
+  <text class="m" x="196" y="122" font-size="11.5" fill="#69707C">trusted frame · stamps caller identity · owns the kernel token</text>
+  <g class="m" font-size="11.5">
+    <rect x="196" y="140" width="130" height="26" rx="13" fill="#16203A" stroke="#2E4372"/><text x="224" y="157" fill="#7AA2FF">palette</text>
+    <rect x="338" y="140" width="130" height="26" rx="13" fill="#232833"/><text x="366" y="157" fill="#9BA1A9">quick capture</text>
+    <rect x="480" y="140" width="100" height="26" rx="13" fill="#232833"/><text x="512" y="157" fill="#9BA1A9">search</text>
+    <rect x="592" y="140" width="100" height="26" rx="13" fill="#232833"/><text x="624" y="157" fill="#9BA1A9">settings</text>
+    <rect x="708" y="140" width="120" height="26" rx="13" fill="#232833"/><text x="740" y="157" fill="#9BA1A9">workspaces</text>
+  </g>
+  <text class="m" x="1404" y="98" font-size="11.5" fill="#4B515C" text-anchor="end">the only holder of the RPC token</text>
+
+  <!-- vertical wires shell⇄kernel -->
+  <line x1="560" y1="206" x2="560" y2="286" stroke="#39404B" stroke-width="1.6" marker-end="url(#aArrow)"/>
+  <text class="m" x="576" y="238" font-size="12" fill="#8A9098">kernel_rpc(token, request)</text>
+  <text class="m" x="576" y="258" font-size="11" fill="#4B515C">single dispatcher · params ≤ 10 MiB · audited type mirror</text>
+  <line x1="1030" y1="286" x2="1030" y2="206" stroke="#39404B" stroke-width="1.6" marker-end="url(#aArrow)"/>
+  <text class="m" x="1046" y="238" font-size="12" fill="#8A9098">push batches</text>
+  <text class="m" x="1046" y="258" font-size="11" fill="#4B515C">monotonic seq · 12 ms window · overflow = drop oldest + log</text>
+
+  <!-- ══ tier 2: kernel ══════════════════════════════════════════ -->
+  <rect x="160" y="292" width="1280" height="170" rx="12" fill="#16203A22" stroke="#2E4372"/>
+  <text class="t" x="196" y="334" font-size="15" font-weight="600" fill="#7AA2FF">wz-kernel — Rust · 12 crates · one process</text>
+  <text class="m" x="196" y="358" font-size="11.5" fill="#8A9098">permissions · durable state · plugin lifecycle · registry</text>
+  <g class="m" font-size="11.5">
+    <rect x="196" y="376" width="104" height="26" rx="6" fill="#232833"/><text x="214" y="393" fill="#C9CDD4">settings</text>
+    <rect x="312" y="376" width="120" height="26" rx="6" fill="#232833"/><text x="330" y="393" fill="#C9CDD4">workspaces</text>
+    <rect x="444" y="376" width="100" height="26" rx="6" fill="#232833"/><text x="468" y="393" fill="#C9CDD4">plugins</text>
+    <rect x="556" y="376" width="92" height="26" rx="6" fill="#232833"/><text x="578" y="393" fill="#C9CDD4">events</text>
+    <rect x="660" y="376" width="90" height="26" rx="6" fill="#232833"/><text x="682" y="393" fill="#C9CDD4">search</text>
+    <rect x="762" y="376" width="100" height="26" rx="6" fill="#232833"/><text x="784" y="393" fill="#C9CDD4">artifacts</text>
+    <rect x="874" y="376" width="92" height="26" rx="6" fill="#232833"/><text x="896" y="393" fill="#C9CDD4">secrets</text>
+    <rect x="978" y="376" width="66" height="26" rx="6" fill="#232833"/><text x="993" y="393" fill="#C9CDD4">pty</text>
+    <rect x="1056" y="376" width="66" height="26" rx="6" fill="#232833"/><text x="1071" y="393" fill="#C9CDD4">net</text>
+    <rect x="1134" y="376" width="72" height="26" rx="6" fill="#232833"/><text x="1151" y="393" fill="#C9CDD4">mcp</text>
+    <rect x="1218" y="376" width="60" height="26" rx="6" fill="#232833"/><text x="1233" y="393" fill="#C9CDD4">ai</text>
+  </g>
+  <text class="m" x="196" y="436" font-size="11.5" fill="#4B515C">every write atomic + fsynced · every lock poison-tolerant · derived index self-repairs</text>
+
+  <!-- kernel ⇄ each plugin -->
+  <line x1="440" y1="462" x2="440" y2="560" stroke="#39404B" stroke-width="1.6" marker-start="url(#aArrow)" marker-end="url(#aArrow)"/>
+  <line x1="800" y1="462" x2="800" y2="560" stroke="#39404B" stroke-width="1.6" marker-start="url(#aArrow)" marker-end="url(#aArrow)"/>
+  <line x1="1160" y1="462" x2="1160" y2="560" stroke="#39404B" stroke-width="1.6" marker-start="url(#aArrow)" marker-end="url(#aArrow)"/>
+  <text class="m" x="456" y="500" font-size="12" fill="#8A9098">bridge: wz-rpc · wz-push</text>
+  <text class="m" x="456" y="520" font-size="11" fill="#4B515C">caller stamped by the host frame</text>
+  <text class="t" x="1200" y="505" font-size="11.5" fill="#46A758">✓ permission-gated per call</text>
+
+  <!-- ══ tier 3: plugins ═════════════════════════════════════════ -->
+  <g>
+    <rect x="200" y="566" width="480" height="170" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="m" x="224" y="600" font-size="12" fill="#9BA1A9">wzp://zero.memo/entry.html</text>
+    <rect x="224" y="612" width="432" height="88" rx="8" fill="#121418"/>
+    <text class="m" x="240" y="642" font-size="12" fill="#69707C">sandbox: allow-scripts allow-modals</text>
+    <text class="m" x="240" y="664" font-size="12" fill="#69707C">csp: connect-src 'none'</text>
+    <text class="m" x="240" y="686" font-size="12" fill="#7AA2FF">grants: workspace:read · workspace:write</text>
+  </g>
+  <g>
+    <rect x="710" y="566" width="180" height="170" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="t" x="730" y="600" font-size="12.5" font-weight="600" fill="#C9CDD4">zero.tasks</text>
+    <circle cx="800" cy="655" r="22" fill="none" stroke="#39404B" stroke-width="2"/>
+    <circle cx="800" cy="655" r="22" fill="none" stroke="#5E8CFF" stroke-width="2" stroke-dasharray="78 42"/>
+    <text class="m" x="730" y="706" font-size="11" fill="#69707C">sandboxed iframe</text>
+  </g>
+  <g>
+    <rect x="920" y="566" width="480" height="170" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="m" x="944" y="600" font-size="12" fill="#9BA1A9">wzp://zero.ai/entry.html</text>
+    <rect x="944" y="612" width="432" height="88" rx="8" fill="#121418"/>
+    <text class="m" x="960" y="642" font-size="12" fill="#69707C">streams answered only to its frames</text>
+    <text class="m" x="960" y="664" font-size="12" fill="#69707C">tool calls: uuid ids, ownership-checked</text>
+    <text class="m" x="960" y="686" font-size="12" fill="#7AA2FF">grants: ai:invoke · network · workspace:read</text>
+  </g>
+
+  <text class="t" x="160" y="790" font-size="12" fill="#4B515C">ADR-0001 → 0009 · protocol mirror: packages/protocol · the kernel is the only trust boundary</text>
+</svg>

@@ -1,31 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Workbench Zero — Your workbench. From zero.">
-  <!-- GitHub social preview (1280×640). Same vocabulary as banner.svg. -->
-  <defs>
-    <linearGradient id="spBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0B1120"/>
-      <stop offset="1" stop-color="#1E293B"/>
-    </linearGradient>
-    <linearGradient id="spRing" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#38BDF8"/>
-      <stop offset="1" stop-color="#818CF8"/>
-    </linearGradient>
-  </defs>
-  <rect width="1280" height="640" fill="url(#spBg)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Workbench Zero — local-first workbench, sandboxed plugins, durable by default">
+  <!-- GitHub social preview 1280×640 — brand set in the same flat language
+       as the product surfaces. -->
+  <style>
+    .t { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+    .m { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+  </style>
+  <rect width="1280" height="640" fill="#0C0D10"/>
 
   <!-- mark -->
-  <g transform="translate(150,150)">
-    <line x1="0" y1="250" x2="340" y2="250" stroke="#E2E8F0" stroke-width="20" stroke-linecap="round"/>
-    <circle cx="170" cy="122" r="110" fill="none" stroke="url(#spRing)" stroke-width="46"/>
-    <rect x="62" y="278" width="38" height="38" rx="9" fill="#38BDF8"/>
-    <rect x="151" y="278" width="38" height="38" rx="9" fill="#818CF8"/>
-    <rect x="240" y="278" width="38" height="38" rx="9" fill="#E2E8F0"/>
+  <g transform="translate(120,180)">
+    <circle cx="100" cy="86" r="76" fill="none" stroke="#5E8CFF" stroke-width="30"/>
+    <rect x="0" y="190" width="200" height="22" rx="11" fill="#2A2F3A"/>
+    <rect x="38" y="228" width="22" height="22" rx="6" fill="#5E8CFF"/>
+    <rect x="89" y="228" width="22" height="22" rx="6" fill="#8FB0FF"/>
+    <rect x="140" y="228" width="22" height="22" rx="6" fill="#3D4450"/>
   </g>
 
-  <text x="580" y="280" font-family="system-ui, sans-serif" font-size="72" font-weight="800" fill="#F8FAFC">Workbench Zero</text>
-  <text x="582" y="340" font-family="system-ui, sans-serif" font-size="30" fill="#94A3B8">Your workbench. From zero.</text>
-  <g font-family="ui-monospace, monospace" font-size="21" fill="#38BDF8">
-    <text x="582" y="420">local-first · plugin kernel · demos? no — durable</text>
+  <!-- brand type -->
+  <text class="t" x="420" y="222" font-size="64" font-weight="700" fill="#F2F3F5" letter-spacing="-1.2">Workbench Zero</text>
+  <text class="t" x="422" y="272" font-size="25" fill="#9BA1A9">Your workbench. From zero.</text>
+  <text class="t" x="422" y="316" font-size="18" fill="#6B7280">Notes, tasks, files, terminals — and AI if you want it. Plain files, one folder, yours.</text>
+
+  <g class="m" font-size="15">
+    <rect x="420" y="350" width="150" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="446" y="375" fill="#7AA2FF">local-first</text>
+    <rect x="586" y="350" width="204" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="612" y="375" fill="#7AA2FF">sandboxed plugins</text>
+    <rect x="806" y="350" width="190" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="832" y="375" fill="#7AA2FF">durable by default</text>
   </g>
-  <rect x="582" y="452" width="250" height="44" rx="22" fill="none" stroke="#334155" stroke-width="2"/>
-  <text x="612" y="481" font-family="ui-monospace, monospace" font-size="20" fill="#E2E8F0">v1.0.0 · MIT</text>
+
+  <g class="m" font-size="15">
+    <rect x="420" y="412" width="168" height="38" rx="19" fill="none" stroke="#39404B"/>
+    <text x="452" y="437" fill="#C9CDD4">v1.0.0 · MIT</text>
+    <text x="612" y="437" fill="#4B515C">github.com/yanyi010/WorkbenchZero</text>
+  </g>
+
+  <line x1="420" y1="500" x2="1160" y2="500" stroke="#23262E"/>
+  <text class="m" x="420" y="534" font-size="13" fill="#4B515C">atomic writes · quarantine not deletion · automatic snapshots · deny-by-default permissions</text>
 </svg>
