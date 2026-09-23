@@ -1,5 +1,5 @@
 {
-  "name": "@eigendesk/ui-kit",
+  "name": "@workbench-zero/ui-kit",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "./tokens.css": "./src/tokens.css"
   },
   "dependencies": {
-    "@eigendesk/protocol": "0.1.0"
+    "@workbench-zero/protocol": "0.1.0"
   },
   "peerDependencies": {
     "react": "^18.0.0"

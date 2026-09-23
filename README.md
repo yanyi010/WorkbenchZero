@@ -1,4 +1,4 @@
-# EigenDesk
+# Workbench Zero
 
 A local-first, extensible personal workbench. Rust kernel, TypeScript
 shell, sandboxed plugins — your memos, tasks, stickies, files, terminal
@@ -9,7 +9,7 @@ and AI assistant in one desktop app that never phones home.
 │  TitleBar          ⌘K palette  Alt+Space capture        │
 ├────┬────────────────────────────────────────┬───────────┤
 │ A  │  Dashboard / Memos / Tasks / Terminal  │  Status   │
-│ c  │  (tabs, plugin views in edp:// frames) │  Bar      │
+│ c  │  (tabs, plugin views in wzp:// frames) │  Bar      │
 │ t  │                                        │           │
 └────┴────────────────────────────────────────┴───────────┘
         ▲ plugin iframes (sandboxed, permission-gated)
@@ -24,7 +24,7 @@ and AI assistant in one desktop app that never phones home.
 
 - **Local-first** — product data is plain Markdown/JSON inside a
   workspace folder you own (ADR-0006). Backup = `cp -r`.
-- **Real plugin sandbox** — plugins run on synthetic `edp://` origins
+- **Real plugin sandbox** — plugins run on synthetic `wzp://` origins
   with `sandbox="allow-scripts"`; every capability call is stamped and
   permission-checked in the trusted frame (ADR-0002/0004).
 - **Closed permission set** with per-install approval and
@@ -36,7 +36,7 @@ and AI assistant in one desktop app that never phones home.
 - **First-party plugins**: Memo, Tasks, Sticky, Files, Terminal (PTY),
   Quick Ask (any OpenAI-compatible endpoint, keys in the OS keychain).
 - **Developer CLI** `wb` — scaffold, build, hot-reload into the running
-  app, deterministic `.edplugin.zip` packaging.
+  app, deterministic `.wzplugin.zip` packaging.
 
 ## Repository layout
 
@@ -85,7 +85,7 @@ cargo test --workspace  # 58 Rust tests
 npm run wb -- plugin create my-plugin
 cd my-plugin
 npm run wb -- plugin dev .     # hot-reloads into the running app
-npm run wb -- plugin pack .    # → my-plugin-0.1.0.edplugin.zip
+npm run wb -- plugin pack .    # → my-plugin-0.1.0.wzplugin.zip
 ```
 
 A minimal plugin is one command in under 100 lines (see

@@ -17,8 +17,8 @@ import type {
   SettingDescriptor,
   ShellNotification,
   WorkspaceInfo,
-} from '@eigendesk/protocol';
-import { Methods } from '@eigendesk/protocol';
+} from '@workbench-zero/protocol';
+import { Methods } from '@workbench-zero/protocol';
 import { rpc } from './kernel';
 import { pluginHost } from './pluginHost';
 

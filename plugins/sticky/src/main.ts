@@ -6,10 +6,10 @@
  * task lists rendered by the preview pane. Conversion commands hand the
  * text to the Memo / Tasks plugins via events — Sticky stays decoupled.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import { renderMarkdown } from '@eigendesk/plugin-sdk/markdown';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
-import type { ReadDirResult } from '@eigendesk/protocol';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import { renderMarkdown } from '@workbench-zero/plugin-sdk/markdown';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
+import type { ReadDirResult } from '@workbench-zero/protocol';
 
 interface StickyCard {
   uri: string;
@@ -241,14 +241,14 @@ definePlugin({
     ctx = context;
 
     ctx.commands.onCommand((id, args) => {
-      if (id === 'eigendesk.sticky.new') return create(args ?? '');
-      if (id === 'eigendesk.sticky.convertToMemo') {
+      if (id === 'zero.sticky.new') return create(args ?? '');
+      if (id === 'zero.sticky.convertToMemo') {
         const card = cards.find((c) => c.uri === args);
         return ctx.events.emit('memo.createFromText', {
           text: card ? `# ${card.title}\n\n${card.body}` : (args ?? ''),
         });
       }
-      if (id === 'eigendesk.sticky.convertToTask') {
+      if (id === 'zero.sticky.convertToTask') {
         const card = cards.find((c) => c.uri === args);
         return ctx.events.emit('task.createFromText', {
           text: card ? `${card.title}\n${card.body}` : (args ?? ''),

@@ -3,13 +3,13 @@
  * service. Processes belong to session scope — the session id never
  * leaves this plugin, and killing the view kills the session.
  */
-import { definePlugin } from '@eigendesk/plugin-sdk';
-import { h, render } from '@eigendesk/plugin-sdk';
+import { definePlugin } from '@workbench-zero/plugin-sdk';
+import { h, render } from '@workbench-zero/plugin-sdk';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
-import type { PtySessionInfo } from '@eigendesk/protocol';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
+import type { PtySessionInfo } from '@workbench-zero/protocol';
 
 interface TermSession {
   info: PtySessionInfo;
@@ -104,8 +104,8 @@ function activate(index: number): void {
 
 async function createSession(): Promise<void> {
   const ws = await ctx.workspace.current();
-  const shellSetting = (await ctx.settings.get<string>('eigendesk.terminal.shell')) ?? '';
-  const fontSize = (await ctx.settings.get<number>('eigendesk.terminal.fontSize')) ?? 13;
+  const shellSetting = (await ctx.settings.get<string>('zero.terminal.shell')) ?? '';
+  const fontSize = (await ctx.settings.get<number>('zero.terminal.fontSize')) ?? 13;
 
   const term = new Terminal({
     fontFamily: 'var(--ed-font-mono), monospace',
@@ -180,7 +180,7 @@ async function close(index: number): Promise<void> {
 definePlugin({
   async activate(context) {
     ctx = context;
-    if (ctx.surface !== 'view:eigendesk.terminal.main') {
+    if (ctx.surface !== 'view:zero.terminal.main') {
       // Logic frame: nothing to do — sessions are view-scoped (spec §63).
       return;
     }

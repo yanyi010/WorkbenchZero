@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-09-23
-- Deciders: EigenDesk core
+- Deciders: Workbench Zero core
 
 ## Context
 
-EigenDesk's desktop shell is Tauri 2. The kernel (settings, workspaces,
+Workbench Zero's desktop shell is Tauri 2. The kernel (settings, workspaces,
 permissions, plugin runtime, search, artifacts, PTY, network, MCP, AI
 tool routing) must be testable without a window manager and reusable by
 a future standalone MCP server binary. Spec §115 sequences delivery so
@@ -34,7 +34,7 @@ commands          registry with activation matching
 
 Rules:
 
-1. `eigendesk-kernel` is the only crate that depends on all others; the
+1. `wz-kernel` is the only crate that depends on all others; the
    others stay independent of each other where possible.
 2. Every crate is unit-tested headlessly (`cargo test -p <crate>`); no
    test requires a display, D-Bus, or network.
@@ -47,6 +47,6 @@ Rules:
 
 - The Tauri binary stays thin (`apps/desktop/src-tauri` is transport
   only).
-- A standalone `eigendesk-mcp` server binary can reuse the kernel.
+- A standalone `wz-mcp` server binary can reuse the kernel.
 - Compile times stay acceptable: crates compile in parallel; the shell
   rebuilds only when the kernel changes.

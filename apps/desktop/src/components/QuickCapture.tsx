@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge } from '@eigendesk/ui-kit';
+import { Badge } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { pluginHost } from '../pluginHost';
 import { resolveCaptureProvider } from '../captureRouting';
-import type { CaptureProviderContribution } from '@eigendesk/protocol';
+import type { CaptureProviderContribution } from '@workbench-zero/protocol';
 
 /**
  * Quick Capture (spec §17–18). Core provides the input and the router;

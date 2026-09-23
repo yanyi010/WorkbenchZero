@@ -1,7 +1,7 @@
 /**
- * @eigendesk/plugin-sdk — the public API plugins code against (spec §30).
+ * @workbench-zero/plugin-sdk — the public API plugins code against (spec §30).
  *
- * A plugin runs inside a sandboxed `edp://` iframe (spec §36) with no direct
+ * A plugin runs inside a sandboxed `wzp://` iframe (spec §36) with no direct
  * kernel channel. Every call travels over `postMessage` to the trusted main
  * frame, which stamps the caller's plugin id before forwarding to the
  * kernel — plugins cannot spoof another plugin's identity.
@@ -25,8 +25,8 @@ import type {
   ReadDirResult,
   ReadFileResult,
   StatInfo,
-} from '@eigendesk/protocol';
-import { KernelRpcError } from '@eigendesk/protocol';
+} from '@workbench-zero/protocol';
+import { KernelRpcError } from '@workbench-zero/protocol';
 
 // ---------------------------------------------------------------------------
 // base64 helpers (kernel PTY payload encoding is RFC 4648)
@@ -72,7 +72,7 @@ class Bridge {
   private pluginIdField: string;
   private surfaceField: string;
 
-  /** Immutable after `edp-init` (query string is the fallback source). */
+  /** Immutable after `wz-init` (query string is the fallback source). */
   get pluginId(): string {
     return this.pluginIdField;
   }
@@ -95,7 +95,7 @@ class Bridge {
       const msg = ev.data as HostBridgeMessage;
       if (!msg || typeof msg !== 'object') return;
       switch (msg.type) {
-        case 'edp-init':
+        case 'wz-init':
           if (typeof msg.pluginId === 'string' && msg.pluginId) {
             this.pluginIdField = msg.pluginId;
           }
@@ -105,7 +105,7 @@ class Bridge {
           this.initResolve?.();
           this.initResolve = null;
           break;
-        case 'edp-rpc-result': {
+        case 'wz-rpc-result': {
           const p = this.pending.get(msg.id);
           if (!p) return;
           this.pending.delete(msg.id);
@@ -113,19 +113,19 @@ class Bridge {
           else p.reject(new KernelRpcError(msg.error.code, msg.error.message));
           break;
         }
-        case 'edp-push':
+        case 'wz-push':
           for (const fn of this.pushHandlers) fn(msg.topic, msg.data);
           break;
-        case 'edp-manifest':
+        case 'wz-manifest':
           this.manifestResolve?.(msg.manifest);
           break;
-        case 'edp-command':
+        case 'wz-command':
           this.commandHandlers.forEach((fn) => fn(msg));
           break;
       }
     });
 
-    window.parent.postMessage({ type: 'edp-ready' }, '*');
+    window.parent.postMessage({ type: 'wz-ready' }, '*');
   }
 
   waitReady(): Promise<void> {
@@ -140,7 +140,7 @@ class Bridge {
   requestManifest(): Promise<PluginManifest> {
     return new Promise<PluginManifest>((resolve) => {
       this.manifestResolve = resolve;
-      window.parent.postMessage({ type: 'edp-manifest-request' }, '*');
+      window.parent.postMessage({ type: 'wz-manifest-request' }, '*');
     });
   }
 
@@ -156,7 +156,7 @@ class Bridge {
         resolve: resolve as (value: unknown) => void,
         reject,
       });
-      window.parent.postMessage({ type: 'edp-rpc', id, method, params }, '*');
+      window.parent.postMessage({ type: 'wz-rpc', id, method, params }, '*');
       // Safety net: a dangling promise would freeze the plugin silently
       // (spec §37 — crash isolation must be observable).
       setTimeout(() => {
@@ -490,13 +490,13 @@ function buildContext(): PluginContext {
             try {
               const result = await fn(msg.id, msg.args);
               window.parent.postMessage(
-                { type: 'edp-command-result', requestId: msg.requestId, ok: true, result },
+                { type: 'wz-command-result', requestId: msg.requestId, ok: true, result },
                 '*',
               );
             } catch (err) {
               window.parent.postMessage(
                 {
-                  type: 'edp-command-result',
+                  type: 'wz-command-result',
                   requestId: msg.requestId,
                   ok: false,
                   error: String(err),

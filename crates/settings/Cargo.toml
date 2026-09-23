@@ -1,5 +1,5 @@
 [package]
-name = "eigendesk-settings"
+name = "wz-settings"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

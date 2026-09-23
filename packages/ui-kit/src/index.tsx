@@ -1,5 +1,5 @@
 /**
- * @eigendesk/ui-kit — shared React components for the shell and any plugin
+ * @workbench-zero/ui-kit — shared React components for the shell and any plugin
  * that opts into React (spec §77). Visual consistency across surfaces.
  *
  * Every component is keyboard accessible, uses design tokens only, and

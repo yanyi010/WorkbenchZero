@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { ExtensionPack } from '@eigendesk/protocol';
-import { Methods } from '@eigendesk/protocol';
-import { Badge, Button, Card, Dialog, Input } from '@eigendesk/ui-kit';
+import type { ExtensionPack } from '@workbench-zero/protocol';
+import { Methods } from '@workbench-zero/protocol';
+import { Badge, Button, Card, Dialog, Input } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 
@@ -77,13 +77,13 @@ export function Welcome() {
     <Dialog
       open
       onClose={() => setOverlay(null)}
-      title={step === 'workspace' ? 'Welcome to EigenDesk' : 'Choose your starter pack'}
+      title={step === 'workspace' ? 'Welcome to Workbench Zero' : 'Choose your starter pack'}
       width={620}
     >
       {step === 'workspace' ? (
         <>
           <p style={{ marginTop: 0, color: 'var(--ed-muted)' }}>
-            EigenDesk is a local-first workbench: everything lives in a folder you own. Pick where
+            Workbench Zero is a local-first workbench: everything lives in a folder you own. Pick where
             it should keep this workspace (memos, tasks, notes and indexes).
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ed-space-3)' }}>
@@ -99,7 +99,7 @@ export function Welcome() {
             <label>
               <div style={{ marginBottom: 4 }}>Folder</div>
               <Input
-                placeholder="e.g. ~/EigenDesk"
+                placeholder="e.g. ~/Workbench"
                 value={root}
                 onChange={(e) => setRoot(e.target.value)}
               />

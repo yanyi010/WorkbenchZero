@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-23
-- Deciders: EigenDesk core
+- Deciders: Workbench Zero core
 
 ## Context
 
@@ -14,7 +14,7 @@ machines without a desktop keychain (headless Linux, CI, containers).
 
 1. **Primary backend**: the OS keychain via the `keyring` crate —
    Linux Secret Service (D-Bus), macOS Keychain, Windows Credential
-   Manager. Entries are namespaced `eigendesk / <pluginId>/<key>`.
+   Manager. Entries are namespaced `workbench-zero / <pluginId>/<key>`.
 2. **Documented fallback**: when no Secret Service is reachable, secrets
    are stored in a single `0600`-permission JSON file under XDG data
    (`secrets-fallback.json`), and the UI **surfaces a warning** that

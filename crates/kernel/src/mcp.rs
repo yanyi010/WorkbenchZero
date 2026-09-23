@@ -249,7 +249,7 @@ impl McpManager {
             json!({
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": { "name": "eigendesk", "version": "0.1.0" }
+                "clientInfo": { "name": "workbench-zero", "version": "0.1.0" }
             }),
         )?;
         {

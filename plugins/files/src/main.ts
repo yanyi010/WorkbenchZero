@@ -3,10 +3,10 @@
  * preview. Core exposes only permission-gated fs APIs — everything here
  * is built on them, like any third-party plugin would.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import { renderMarkdown } from '@eigendesk/plugin-sdk/markdown';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
-import type { ReadDirResult } from '@eigendesk/protocol';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import { renderMarkdown } from '@workbench-zero/plugin-sdk/markdown';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
+import type { ReadDirResult } from '@workbench-zero/protocol';
 
 interface TreeNode {
   name: string;
@@ -16,7 +16,7 @@ interface TreeNode {
   children: TreeNode[] | null;
 }
 
-const HIDDEN = new Set(['.git', 'node_modules', '.eigendesk', '__pycache__', 'target', 'dist']);
+const HIDDEN = new Set(['.git', 'node_modules', '.workbench-zero', '__pycache__', 'target', 'dist']);
 const TEXT_MAX = 2 * 1024 * 1024;
 
 const ICONS: Record<string, string> = {
@@ -229,7 +229,7 @@ function previewHeader(path: string): HTMLElement {
 
 function draw(): void {
   const app = document.getElementById('app');
-  if (!app || ctx.surface !== 'view:eigendesk.files.main') return;
+  if (!app || ctx.surface !== 'view:zero.files.main') return;
 
   const previewPane = preview
     ? h(
@@ -261,7 +261,7 @@ definePlugin({
   async activate(context) {
     ctx = context;
     ctx.commands.onCommand((id) => {
-      if (id === 'eigendesk.files.open') return buildRoot();
+      if (id === 'zero.files.open') return buildRoot();
       return undefined;
     });
     ctx.events.on('workspace.opened', () => {

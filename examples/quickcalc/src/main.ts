@@ -3,7 +3,7 @@
  * a permission-free plugin showcase (spec §30: plugins run with least
  * privilege).
  */
-import { definePlugin } from '@eigendesk/plugin-sdk';
+import { definePlugin } from '@workbench-zero/plugin-sdk';
 import { evaluate } from './calc';
 
 definePlugin({

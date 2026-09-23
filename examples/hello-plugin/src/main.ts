@@ -3,7 +3,7 @@
  * plugin in under 100 lines that still exercises the full stack —
  * command, view, search index, notification.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
 
 definePlugin({
   activate(ctx) {
@@ -30,7 +30,7 @@ definePlugin({
           'div',
           { style: 'padding:16px;font-family:var(--ed-font-ui)' },
           h('h2', {}, `Hello from ${ctx.pluginId}`),
-          h('p', {}, 'This view runs sandboxed on the edp:// origin with zero host privileges beyond the manifest.'),
+          h('p', {}, 'This view runs sandboxed on the wzp:// origin with zero host privileges beyond the manifest.'),
           h('p', {}, 'Try the command “Hello: Greet” from the palette (Ctrl+K).'),
         ),
       );

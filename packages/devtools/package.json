@@ -1,7 +1,7 @@
 {
-  "name": "@eigendesk/devtools",
+  "name": "@workbench-zero/devtools",
   "version": "0.1.0",
-  "description": "wb — the EigenDesk plugin developer CLI",
+  "description": "wb — the Workbench Zero plugin developer CLI",
   "type": "module",
   "bin": {
     "wb": "./src/wb.mjs"

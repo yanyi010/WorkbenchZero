@@ -1,4 +1,4 @@
-//! EigenDesk kernel: the Rust core that coordinates capabilities (spec §4-5).
+//! Workbench Zero kernel: the Rust core that coordinates capabilities (spec §4-5).
 //!
 //! The kernel is UI-framework agnostic. The Tauri shell feeds it JSON-RPC
 //! requests and installs a push sink that receives kernel→UI messages.
@@ -22,14 +22,14 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use eigendesk_commands::CommandRegistry;
-use eigendesk_events::EventBus;
-use eigendesk_permissions::Evaluator;
-use eigendesk_plugin_runtime::PluginManager;
-use eigendesk_settings::{Scope, SettingDescriptor, SettingType, SettingsService};
-use eigendesk_storage::{Dirs, PluginStateStore};
-use eigendesk_workspace::{Workspace, WorkspaceManager};
 use once_cell::sync::Lazy;
+use wz_commands::CommandRegistry;
+use wz_events::EventBus;
+use wz_permissions::Evaluator;
+use wz_plugin_runtime::PluginManager;
+use wz_settings::{Scope, SettingDescriptor, SettingType, SettingsService};
+use wz_storage::{Dirs, PluginStateStore};
+use wz_workspace::{Workspace, WorkspaceManager};
 
 /// Global AI tool registry (contributed by plugins, manifest + dynamic).
 pub static AI_TOOLS: Lazy<ai_tools::AiToolRegistry> = Lazy::new(ai_tools::AiToolRegistry::new);
@@ -86,7 +86,7 @@ pub struct Kernel {
     pub permissions: Evaluator,
     pub commands: CommandRegistry,
     pub events: EventBus,
-    pub secrets: eigendesk_secrets::SecretsService,
+    pub secrets: wz_secrets::SecretsService,
     pub diagnostics: diagnostics::Diagnostics,
     pub pty: pty::PtyManager,
     pub net: net::NetService,
@@ -229,7 +229,7 @@ impl Kernel {
             permissions: Evaluator::new(),
             commands: CommandRegistry::new(),
             events: EventBus::new(),
-            secrets: eigendesk_secrets::SecretsService::new(dirs.data.clone()),
+            secrets: wz_secrets::SecretsService::new(dirs.data.clone()),
             diagnostics: diagnostics::Diagnostics::new(config.app_version.clone()),
             pty: pty::PtyManager::new(),
             net: net::NetService::new(),
@@ -278,7 +278,7 @@ impl Kernel {
             version = %kernel.app_version,
             safe_mode = kernel.safe_mode,
             startup_ms = startup_ms.1,
-            "EigenDesk kernel ready"
+            "Workbench Zero kernel ready"
         );
         Ok(kernel)
     }
@@ -333,7 +333,7 @@ impl Kernel {
                 key: "core.capture.globalShortcut".into(),
                 r#type: SettingType::Boolean,
                 title: "Global Quick Capture shortcut (Alt+Space)".into(),
-                description: Some("Register Alt+Space system-wide so Quick Capture opens even when EigenDesk is not focused.".into()),
+                description: Some("Register Alt+Space system-wide so Quick Capture opens even when Workbench Zero is not focused.".into()),
                 default: Some(serde_json::json!(false)),
                 enum_values: vec![],
                 scope: Scope::Global,
@@ -397,9 +397,7 @@ impl Kernel {
     pub fn sync_permission_grants(&self) {
         for info in self.plugins.list() {
             if let Some(rec) = self.plugins.get(&info.manifest.id) {
-                if rec.is_installed()
-                    && rec.state != eigendesk_plugin_runtime::PluginState::Uninstalled
-                {
+                if rec.is_installed() && rec.state != wz_plugin_runtime::PluginState::Uninstalled {
                     self.permissions
                         .set_grants(&info.manifest.id, rec.granted.clone());
                 } else {
@@ -415,11 +413,11 @@ impl Kernel {
     pub fn sync_registries(&self) {
         self.sync_permission_grants();
         let infos = self.plugins.list();
-        let enabled: Vec<&eigendesk_plugin_runtime::PluginInfo> = infos
+        let enabled: Vec<&wz_plugin_runtime::PluginInfo> = infos
             .iter()
             .filter(|i| {
-                i.state == eigendesk_plugin_runtime::PluginState::Enabled
-                    || i.state == eigendesk_plugin_runtime::PluginState::Active
+                i.state == wz_plugin_runtime::PluginState::Enabled
+                    || i.state == wz_plugin_runtime::PluginState::Active
             })
             .collect();
         // Commands from enabled plugins.
@@ -428,7 +426,7 @@ impl Kernel {
         }
         for info in &enabled {
             for cmd in &info.manifest.contributes.commands {
-                self.commands.upsert(eigendesk_commands::CommandDef {
+                self.commands.upsert(wz_commands::CommandDef {
                     id: cmd.id.clone(),
                     title: cmd.title.clone(),
                     category: cmd.category.clone(),
@@ -466,13 +464,12 @@ impl Kernel {
             if info.trusted {
                 continue;
             }
-            if info.state == eigendesk_plugin_runtime::PluginState::Enabled
-                || info.state == eigendesk_plugin_runtime::PluginState::Active
+            if info.state == wz_plugin_runtime::PluginState::Enabled
+                || info.state == wz_plugin_runtime::PluginState::Active
             {
-                let _ = self.plugins.set_state(
-                    &info.manifest.id,
-                    eigendesk_plugin_runtime::PluginState::Disabled,
-                );
+                let _ = self
+                    .plugins
+                    .set_state(&info.manifest.id, wz_plugin_runtime::PluginState::Disabled);
             }
         }
         tracing::warn!("safe mode active: third-party plugins disabled for this session");
@@ -580,12 +577,11 @@ impl Kernel {
         };
         let conn = rusqlite::Connection::open(&ws.sqlite_path)
             .map_err(|e| KernelError::Message(format!("cannot open index.sqlite: {e}")))?;
-        eigendesk_workspace::apply_sqlite_migrations(&conn)
+        wz_workspace::apply_sqlite_migrations(&conn)
             .map_err(|e| KernelError::Message(format!("migration failed: {e}")))?;
-        eigendesk_artifacts::ArtifactRegistry::init(&conn)
+        wz_artifacts::ArtifactRegistry::init(&conn)
             .map_err(|e| KernelError::Message(e.to_string()))?;
-        eigendesk_search::SearchIndex::init(&conn)
-            .map_err(|e| KernelError::Message(e.to_string()))?;
+        wz_search::SearchIndex::init(&conn).map_err(|e| KernelError::Message(e.to_string()))?;
         let state = Arc::new(WorkspaceState {
             workspace: ws,
             conn: Mutex::new(conn),
@@ -650,8 +646,8 @@ fn init_logging(dirs: &Dirs) -> anyhow::Result<()> {
     if LOGGING_INIT.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
-    let appender = tracing_appender::rolling::daily(dirs.logs.join("eigendesk"), "app.log");
-    let level = std::env::var("EIGENDESK_LOG").unwrap_or_else(|_| "info".to_string());
+    let appender = tracing_appender::rolling::daily(dirs.logs.join("workbench-zero"), "app.log");
+    let level = std::env::var("WORKBENCH_ZERO_LOG").unwrap_or_else(|_| "info".to_string());
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::new(&level))
         .with_writer(appender)

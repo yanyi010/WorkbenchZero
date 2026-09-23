@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { SearchHit } from '@eigendesk/protocol';
-import type { CommandListItem } from '@eigendesk/ui-kit';
-import { Methods } from '@eigendesk/protocol';
-import { CommandList } from '@eigendesk/ui-kit';
+import type { SearchHit } from '@workbench-zero/protocol';
+import type { CommandListItem } from '@workbench-zero/ui-kit';
+import { Methods } from '@workbench-zero/protocol';
+import { CommandList } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 
@@ -68,7 +68,7 @@ export function SearchOverlay() {
       out.push({
         id: `cmd:${cmd.id}`,
         title: cmd.title,
-        subtitle: cmd.pluginId ?? 'EigenDesk core',
+        subtitle: cmd.pluginId ?? 'Workbench Zero core',
         group: 'Commands',
       });
     }

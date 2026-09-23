@@ -1,5 +1,5 @@
 /**
- * @eigendesk/protocol — the canonical TypeScript mirror of the EigenDesk
+ * @workbench-zero/protocol — the canonical TypeScript mirror of the Workbench Zero
  * kernel RPC surface (spec §30 / ADR-0003). Every type here must stay in
  * lockstep with `crates/kernel/src/rpc.rs`; the kernel is the source of
  * truth and this package is its published contract for the shell and the
@@ -144,7 +144,7 @@ export interface PluginManifest {
   permissions?: PermissionDeclaration[];
   activationEvents?: string[];
   contributes?: PluginContributes;
-  /** Entry document served via `edp://` (default `entry.html`). */
+  /** Entry document served via `wzp://` (default `entry.html`). */
   entry?: string;
 }
 
@@ -663,23 +663,23 @@ export class KernelRpcError extends Error {
 
 /** Plugin iframe → main frame. */
 export type PluginBridgeMessage =
-  | { type: 'edp-rpc'; id: number; method: string; params: Record<string, unknown> }
-  | { type: 'edp-ready' }
-  | { type: 'edp-manifest-request' }
-  | { type: 'edp-command-result'; requestId: number; ok: boolean; result?: unknown; error?: string };
+  | { type: 'wz-rpc'; id: number; method: string; params: Record<string, unknown> }
+  | { type: 'wz-ready' }
+  | { type: 'wz-manifest-request' }
+  | { type: 'wz-command-result'; requestId: number; ok: boolean; result?: unknown; error?: string };
 
 /** Main frame → plugin iframe. */
 export type HostBridgeMessage =
-  | { type: 'edp-init'; pluginId: string; surface: string; apiVersion: string }
-  | { type: 'edp-rpc-result'; id: number; ok: true; result: unknown }
-  | { type: 'edp-rpc-result'; id: number; ok: false; error: { code: string; message: string } }
-  | { type: 'edp-push'; topic: PushTopic; data: unknown }
-  | { type: 'edp-manifest'; manifest: PluginManifest }
-    | { type: 'edp-command'; requestId: number; id: string; args?: string };
+  | { type: 'wz-init'; pluginId: string; surface: string; apiVersion: string }
+  | { type: 'wz-rpc-result'; id: number; ok: true; result: unknown }
+  | { type: 'wz-rpc-result'; id: number; ok: false; error: { code: string; message: string } }
+  | { type: 'wz-push'; topic: PushTopic; data: unknown }
+  | { type: 'wz-manifest'; manifest: PluginManifest }
+    | { type: 'wz-command'; requestId: number; id: string; args?: string };
 
 /** Extracted command invocation message (host → plugin iframe). */
 export interface HostBridgeCommand {
-  type: 'edp-command';
+  type: 'wz-command';
   requestId: number;
   id: string;
   args?: string;

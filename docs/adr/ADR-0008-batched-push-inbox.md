@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-23
-- Deciders: EigenDesk core
+- Deciders: Workbench Zero core
 
 ## Context
 

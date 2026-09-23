@@ -5,7 +5,7 @@
 - `crates/kernel/src/rpc.rs` — the single method dispatcher; the TS
   mirror in `packages/protocol` is drift-tested against it
 - `apps/desktop/src-tauri/src/lib.rs` — Tauri transport: `kernel_rpc`,
-  `set_global_capture`, the `edp://` protocol handler, push sink
+  `set_global_capture`, the `wzp://` protocol handler, push sink
 
 ## Data flow at a glance
 
@@ -24,4 +24,4 @@ plugin frame ─postMessage─▶ pluginHost (identity stamp) ─kernel_rpc─�
 3. `store.boot()`: bootstrapInfo → workspaces, plugins, settings,
    **commands** (keybindings resolve from the command table)
 4. manifests cached; first-run detection opens the Welcome overlay
-5. kernel logs "ready" with startup timing (`logs/eigendesk/app.log…`)
+5. kernel logs "ready" with startup timing (`logs/workbench-zero/app.log…`)

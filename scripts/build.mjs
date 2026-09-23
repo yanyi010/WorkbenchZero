@@ -1,5 +1,5 @@
 /**
- * EigenDesk plugin build (spec §38, §41, §113).
+ * Workbench Zero plugin build (spec §38, §41, §113).
  *
  * For each plugin under plugins/ and examples/:
  *   1. bundle src/main.ts → dist/main.js (+ dist/main.css when the bundle
@@ -31,19 +31,19 @@ const PACKS = [
     id: 'essentials',
     name: 'Essentials',
     description: 'Memo, Tasks, Sticky and Quick Ask — the daily capture kit.',
-    plugins: ['eigendesk.memo', 'eigendesk.tasks', 'eigendesk.sticky', 'eigendesk.ai'],
+    plugins: ['zero.memo', 'zero.tasks', 'zero.sticky', 'zero.ai'],
   },
   {
     id: 'developer',
     name: 'Developer',
     description: 'Terminal and Files for technical workspaces.',
-    plugins: ['eigendesk.files', 'eigendesk.terminal'],
+    plugins: ['zero.files', 'zero.terminal'],
   },
   {
     id: 'minimal',
     name: 'Minimal',
     description: 'Just memo capture. Nothing else.',
-    plugins: ['eigendesk.memo'],
+    plugins: ['zero.memo'],
   },
 ];
 

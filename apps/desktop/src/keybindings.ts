@@ -4,7 +4,7 @@
  * conflicts are surfaced, and plugins must not assume their default is
  * active.
  */
-import type { CommandDef } from '@eigendesk/protocol';
+import type { CommandDef } from '@workbench-zero/protocol';
 
 export interface ResolvedBinding {
   accel: string;

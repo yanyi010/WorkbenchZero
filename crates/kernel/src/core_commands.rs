@@ -2,7 +2,7 @@
 //! application shell (main frame); plugin commands are routed to plugin
 //! iframes. Default keybindings can be overridden by the user (spec §74).
 
-use eigendesk_commands::{CommandDef, CommandRegistry};
+use wz_commands::{CommandDef, CommandRegistry};
 
 pub fn register_core_commands(registry: &CommandRegistry) {
     let core = |id: &str, title: &str, category: &str, keybinding: Option<&str>| CommandDef {
@@ -115,7 +115,7 @@ pub fn register_core_commands(registry: &CommandRegistry) {
             "Developer",
             Some("Ctrl+R"),
         ),
-        core("core.quit", "Quit EigenDesk", "App", None),
+        core("core.quit", "Quit Workbench Zero", "App", None),
     ];
     // App commands that receive arguments.
     let with_args = vec![CommandDef {

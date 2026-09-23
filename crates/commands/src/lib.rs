@@ -1,4 +1,4 @@
-//! Command registry. Everything actionable in EigenDesk is a Command
+//! Command registry. Everything actionable in Workbench Zero is a Command
 //! (spec §15). Commands are metadata: execution is routed by the shell to the
 //! owning plugin (via the plugin RPC bridge) or handled by the app itself.
 //! Command IDs are public API and MUST remain stable.

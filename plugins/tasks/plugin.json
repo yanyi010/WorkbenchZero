@@ -1,16 +1,16 @@
 {
-  "id": "eigendesk.tasks",
+  "id": "zero.tasks",
   "name": "Tasks",
   "version": "0.1.0",
   "apiVersion": "1",
   "description": "Lightweight task list: title, status, due date, priority, tags, project, notes.",
-  "publisher": "eigendesk",
+  "publisher": "zero",
   "trust": "trusted",
   "permissions": ["workspace:read", "workspace:write", "notification"],
   "activationEvents": [
-    "onCommand:eigendesk.tasks.quickAdd",
-    "onCommand:eigendesk.tasks.open",
-    "onView:eigendesk.tasks.main",
+    "onCommand:zero.tasks.quickAdd",
+    "onCommand:zero.tasks.open",
+    "onView:zero.tasks.main",
     "onStartup",
     "onEvent:workspace.opened",
     "onEvent:task.createFromText"
@@ -18,25 +18,25 @@
   "contributes": {
     "commands": [
       {
-        "id": "eigendesk.tasks.quickAdd",
+        "id": "zero.tasks.quickAdd",
         "title": "Quick Add Task",
         "category": "Tasks",
         "takesArgs": true,
         "keybinding": "Ctrl+Alt+T"
       },
-      { "id": "eigendesk.tasks.open", "title": "Open Tasks", "category": "Tasks", "opensView": "eigendesk.tasks.main" }
+      { "id": "zero.tasks.open", "title": "Open Tasks", "category": "Tasks", "opensView": "zero.tasks.main" }
     ],
-    "views": [{ "id": "eigendesk.tasks.main", "title": "Tasks", "icon": "✓", "location": "main" }],
-    "widgets": [{ "id": "eigendesk.tasks.today", "title": "Today", "minWidth": 220, "minHeight": 140 }],
+    "views": [{ "id": "zero.tasks.main", "title": "Tasks", "icon": "✓", "location": "main" }],
+    "widgets": [{ "id": "zero.tasks.today", "title": "Today", "minWidth": 220, "minHeight": 140 }],
     "settings": [],
-    "searchProviders": [{ "id": "eigendesk.tasks", "title": "Tasks" }],
+    "searchProviders": [{ "id": "zero.tasks", "title": "Tasks" }],
     "captureProviders": [
       {
-        "id": "eigendesk.tasks.quick",
+        "id": "zero.tasks.quick",
         "title": "Task",
         "prefixes": ["/t", "task:"],
         "priority": 90,
-        "command": "eigendesk.tasks.quickAdd"
+        "command": "zero.tasks.quickAdd"
       }
     ],
     "artifactTypes": [{ "type": "task", "title": "Task" }]

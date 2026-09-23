@@ -44,7 +44,7 @@ pub fn dispatch(
             Ok(json!({ "path": path.display().to_string() }))
         }
         "app.logFile" => {
-            let file = kernel.dirs.logs.join("eigendesk").join(format!(
+            let file = kernel.dirs.logs.join("workbench-zero").join(format!(
                 "app.log.{}",
                 chrono::Local::now().format("%Y-%m-%d")
             ));
@@ -217,7 +217,7 @@ pub fn dispatch(
             kernel
                 .plugins
                 .get(id)
-                .map(|rec| eigendesk_plugin_runtime::PluginInfo::from(&rec))
+                .map(|rec| wz_plugin_runtime::PluginInfo::from(&rec))
                 .map(|i| json!(i))
                 .ok_or_else(|| KernelError::Message(format!("plugin `{id}` not found")))
         }
@@ -229,8 +229,8 @@ pub fn dispatch(
                 if rec.trusted
                     && matches!(
                         rec.state,
-                        eigendesk_plugin_runtime::PluginState::Discovered
-                            | eigendesk_plugin_runtime::PluginState::Uninstalled
+                        wz_plugin_runtime::PluginState::Discovered
+                            | wz_plugin_runtime::PluginState::Uninstalled
                     )
                 {
                     let info = kernel
@@ -334,7 +334,7 @@ pub fn dispatch(
             let ms = params["activationMs"].as_f64().unwrap_or(0.0);
             kernel
                 .plugins
-                .set_state(id, eigendesk_plugin_runtime::PluginState::Active)
+                .set_state(id, wz_plugin_runtime::PluginState::Active)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.diagnostics.record_activation(id, ms);
             Ok(Value::Null)
@@ -355,7 +355,7 @@ pub fn dispatch(
             if count >= limit {
                 let _ = kernel
                     .plugins
-                    .set_state(id, eigendesk_plugin_runtime::PluginState::Disabled);
+                    .set_state(id, wz_plugin_runtime::PluginState::Disabled);
                 kernel.sync_registries();
                 kernel.events.emit(
                     "plugin.auto-disabled",
@@ -388,7 +388,7 @@ pub fn dispatch(
             let id = str_param(&params, "id")?;
             kernel
                 .plugins
-                .set_state(id, eigendesk_plugin_runtime::PluginState::Enabled)
+                .set_state(id, wz_plugin_runtime::PluginState::Enabled)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             Ok(Value::Null)
         }
@@ -1070,19 +1070,16 @@ pub fn str_param<'a>(params: &'a Value, key: &str) -> KResult<&'a str> {
         .ok_or_else(|| KernelError::Message(format!("missing string parameter `{key}`")))
 }
 
-fn parse_scope(s: &str) -> KResult<eigendesk_settings::Scope> {
+fn parse_scope(s: &str) -> KResult<wz_settings::Scope> {
     match s {
-        "global" => Ok(eigendesk_settings::Scope::Global),
-        "workspace" => Ok(eigendesk_settings::Scope::Workspace),
+        "global" => Ok(wz_settings::Scope::Global),
+        "workspace" => Ok(wz_settings::Scope::Workspace),
         other => Err(KernelError::Message(format!("invalid scope `{other}`"))),
     }
 }
 
-fn parse_command_def(
-    v: &Value,
-    plugin_id: Option<String>,
-) -> KResult<eigendesk_commands::CommandDef> {
-    let mut def: eigendesk_commands::CommandDef = serde_json::from_value(v.clone())
+fn parse_command_def(v: &Value, plugin_id: Option<String>) -> KResult<wz_commands::CommandDef> {
+    let mut def: wz_commands::CommandDef = serde_json::from_value(v.clone())
         .map_err(|e| KernelError::Message(format!("invalid command definition: {e}")))?;
     def.plugin_id = plugin_id;
     if def.id.trim().is_empty() {
@@ -1140,7 +1137,7 @@ fn require_pty(
     Ok(session)
 }
 
-fn workspace_json(ws: &eigendesk_workspace::Workspace) -> Value {
+fn workspace_json(ws: &wz_workspace::Workspace) -> Value {
     json!({
         "id": ws.record.id,
         "name": ws.record.name,

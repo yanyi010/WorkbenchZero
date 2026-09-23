@@ -2,8 +2,8 @@
  * Pomodoro — a widget-first plugin: a focus timer that survives
  * tab switches because the countdown lives in session storage.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
 
 let ctx: PluginContext;
 let endsAt = 0; // epoch ms; 0 = idle

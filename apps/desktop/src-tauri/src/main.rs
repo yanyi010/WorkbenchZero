@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    eigendesk_lib::run()
+    workbench_zero_lib::run()
 }

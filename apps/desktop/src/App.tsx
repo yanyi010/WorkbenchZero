@@ -50,7 +50,7 @@ export function App() {
     return (
       <div className="ed-app" aria-busy="true">
         <div style={{ gridArea: 'titlebar', display: 'grid', placeItems: 'center' }}>
-          EigenDesk
+          Workbench Zero
         </div>
         <div style={{ gridArea: 'main', display: 'grid', placeItems: 'center', color: 'var(--ed-muted)' }}>
           ◌ starting kernel…
@@ -83,7 +83,7 @@ export function App() {
       <ShortcutsOverlay />
       <Welcome />
       <Toasts />
-      <div id="edp-logic-frames" className="ed-logic-frames" />
+      <div id="wz-logic-frames" className="ed-logic-frames" />
     </>
   );
 }

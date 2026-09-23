@@ -10,7 +10,7 @@
 //!   plugin-state/    per-plugin canonical state
 //!   cache/           disposable
 //!
-//! The global workspace registry (`~/.config/eigendesk/workspaces.json`) lists
+//! The global workspace registry (`~/.config/workbench-zero/workspaces.json`) lists
 //! known workspaces and recency. Schema changes use explicit migrations with
 //! backup before destructive steps (spec §69).
 
@@ -325,14 +325,14 @@ fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), WorkspaceErr
 mod tests {
     use super::*;
 
+    /// Unique per process (pid) and per call (atomic counter): parallel tests
+    /// can never share a scratch directory.
     fn temp() -> PathBuf {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "ed-ws-{}-{}",
+            "wz-ws-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .elapsed()
-                .unwrap()
-                .subsec_nanos()
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir

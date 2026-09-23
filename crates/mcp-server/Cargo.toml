@@ -1,11 +1,11 @@
 [package]
-name = "eigendesk-mcp"
+name = "wz-mcp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "eigendesk-mcp"
+name = "wz-mcp"
 path = "src/main.rs"
 
 [dependencies]

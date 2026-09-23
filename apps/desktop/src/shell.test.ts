@@ -4,19 +4,19 @@ import { resolveBindings } from './keybindings';
 import { fuzzyScore } from './components/Palette';
 
 const memo = {
-  pluginId: 'eigendesk.memo',
-  contribution: { id: 'memo', prefixes: [], priority: 100, command: 'eigendesk.memo.new' },
+  pluginId: 'zero.memo',
+  contribution: { id: 'memo', prefixes: [], priority: 100, command: 'zero.memo.new' },
 };
 const tasks = {
-  pluginId: 'eigendesk.tasks',
-  contribution: { id: 'task', prefixes: ['/t', 'task:'], priority: 90, command: 'eigendesk.tasks.quickAdd' },
+  pluginId: 'zero.tasks',
+  contribution: { id: 'task', prefixes: ['/t', 'task:'], priority: 90, command: 'zero.tasks.quickAdd' },
 };
 const sticky = {
-  pluginId: 'eigendesk.sticky',
-  contribution: { id: 'sticky', prefixes: ['/s'], priority: 80, command: 'eigendesk.sticky.new' },
+  pluginId: 'zero.sticky',
+  contribution: { id: 'sticky', prefixes: ['/s'], priority: 80, command: 'zero.sticky.new' },
 };
 const ask = {
-  pluginId: 'eigendesk.ai',
+  pluginId: 'zero.ai',
   contribution: { id: 'ask', prefixes: ['?'], priority: 95 },
 };
 
@@ -25,25 +25,25 @@ describe('capture routing (spec §18)', () => {
 
   it('routes by prefix and strips it from the text', () => {
     const r = resolveCaptureProvider('/t buy milk', providers);
-    expect(r?.pluginId).toBe('eigendesk.tasks');
+    expect(r?.pluginId).toBe('zero.tasks');
     expect(r?.text).toBe('buy milk');
   });
 
   it('supports multi-character prefixes', () => {
     const r = resolveCaptureProvider('task: call advisor', providers);
-    expect(r?.pluginId).toBe('eigendesk.tasks');
+    expect(r?.pluginId).toBe('zero.tasks');
     expect(r?.text).toBe('call advisor');
   });
 
   it('routes question marks to the ask provider', () => {
     const r = resolveCaptureProvider('? why singular', providers);
-    expect(r?.pluginId).toBe('eigendesk.ai');
+    expect(r?.pluginId).toBe('zero.ai');
     expect(r?.text).toBe('why singular');
   });
 
   it('plain text falls back to the prefix-less provider (memo default)', () => {
     const r = resolveCaptureProvider('remember to check Berry convergence', providers);
-    expect(r?.pluginId).toBe('eigendesk.memo');
+    expect(r?.pluginId).toBe('zero.memo');
     expect(r?.text).toBe('remember to check Berry convergence');
   });
 
@@ -59,14 +59,14 @@ describe('capture routing (spec §18)', () => {
 
   it('prefix without trailing text yields empty text', () => {
     const r = resolveCaptureProvider('/t', providers);
-    expect(r?.pluginId).toBe('eigendesk.tasks');
+    expect(r?.pluginId).toBe('zero.tasks');
     expect(r?.text).toBe('');
   });
 
   it('highest priority wins among prefix-less providers', () => {
     const low = { pluginId: 'a.low', contribution: { id: 'low', prefixes: [], priority: 10 } };
     const r = resolveCaptureProvider('note', [low, memo]);
-    expect(r?.pluginId).toBe('eigendesk.memo');
+    expect(r?.pluginId).toBe('zero.memo');
   });
 });
 
@@ -86,7 +86,7 @@ describe('keybindings (spec §74)', () => {
       keywords: [],
       takesArgs: true,
       defaultKeybinding: 'Ctrl+Alt+M',
-      pluginId: 'eigendesk.memo',
+      pluginId: 'zero.memo',
     },
   ];
 

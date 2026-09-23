@@ -1,8 +1,8 @@
-# ADR-0002: Plugin sandbox = cross-origin `edp://` iframes
+# ADR-0002: Plugin sandbox = cross-origin `wzp://` iframes
 
 - Status: Accepted
 - Date: 2026-09-23
-- Deciders: EigenDesk core
+- Deciders: Workbench Zero core
 
 ## Context
 
@@ -18,13 +18,13 @@ Each plugin surface (view, widget, hidden logic frame) runs in an
 `<iframe>` loaded from the synthetic origin:
 
 ```
-edp://<pluginId>/<entry>?surface=<surface>&plugin=<pluginId>
+wzp://<pluginId>/<entry>?surface=<surface>&plugin=<pluginId>
 ```
 
-- The Tauri shell serves `edp://` via a custom protocol handler backed
+- The Tauri shell serves `wzp://` via a custom protocol handler backed
   by the on-disk plugin package directory.
 - Frames get `sandbox="allow-scripts"` **without** `allow-same-origin`:
-  each `edp://<pluginId>` origin is distinct, so the browser engine
+  each `wzp://<pluginId>` origin is distinct, so the browser engine
   itself enforces plugin↔plugin and plugin↔host isolation. No
   `postMessage` target origin check is needed for spoofing *identity*,
   because the main frame stamps identity (ADR-0004).

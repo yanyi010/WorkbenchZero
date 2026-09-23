@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { ArtifactRecord } from '@eigendesk/protocol';
-import { Methods } from '@eigendesk/protocol';
-import { EmptyState, Spinner } from '@eigendesk/ui-kit';
+import type { ArtifactRecord } from '@workbench-zero/protocol';
+import { Methods } from '@workbench-zero/protocol';
+import { EmptyState, Spinner } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 

@@ -19,7 +19,7 @@ use std::sync::RwLock;
 use serde::Serialize;
 use thiserror::Error;
 
-const SERVICE: &str = "eigendesk";
+const SERVICE: &str = "workbench-zero";
 
 #[derive(Debug, Error)]
 pub enum SecretsError {
@@ -80,7 +80,7 @@ impl SecretsService {
 
     fn probe_backend() -> Backend {
         // Probe with a throwaway entry; D-Bus errors mean no Secret Service.
-        match keyring::Entry::new(SERVICE, "eigendesk/probe") {
+        match keyring::Entry::new(SERVICE, "workbench-zero/probe") {
             Ok(entry) => {
                 let _ = entry.get_password();
                 // get_password errors with NoEntry on success-path for missing
@@ -278,13 +278,11 @@ mod tests {
     use super::*;
 
     fn tmpdir() -> PathBuf {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "ed-secrets-{}-{}",
+            "wz-secrets-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .elapsed()
-                .unwrap()
-                .subsec_nanos()
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir

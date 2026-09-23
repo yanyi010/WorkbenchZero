@@ -156,7 +156,7 @@ pub fn copy_path(from: &Path, to: &Path) -> KResult<()> {
     let meta = std::fs::symlink_metadata(from)
         .map_err(|e| KernelError::Message(format!("cannot stat `{}`: {e}", from.display())))?;
     if meta.is_dir() {
-        eigendesk_plugin_runtime::copy_dir(from, to)
+        wz_plugin_runtime::copy_dir(from, to)
             .map_err(|e| KernelError::Message(format!("copy failed: {e}")))
     } else {
         std::fs::copy(from, to)

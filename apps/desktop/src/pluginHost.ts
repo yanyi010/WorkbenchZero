@@ -1,6 +1,6 @@
 /**
  * Plugin host: manages plugin iframes and the trusted main-frame bridge
- * (ADR-0004). Plugin iframes live on the `edp://` origin with no direct
+ * (ADR-0004). Plugin iframes live on the `wzp://` origin with no direct
  * kernel channel; every RPC is stamped with the caller's plugin id here,
  * in the trusted frame — plugins cannot spoof each other.
  */
@@ -10,8 +10,8 @@ import type {
   PushMessage,
   PushTopic,
   RpcResponse,
-} from '@eigendesk/protocol';
-import { Methods } from '@eigendesk/protocol';
+} from '@workbench-zero/protocol';
+import { Methods } from '@workbench-zero/protocol';
 import { rpc } from './kernel';
 
 interface FrameEntry {
@@ -19,7 +19,7 @@ interface FrameEntry {
   pluginId: string;
   surface: string;
   ready: boolean;
-  /** Pending manifest/… handshakes waiting for edp-ready. */
+  /** Pending manifest/… handshakes waiting for wz-ready. */
   initSent: boolean;
 }
 
@@ -59,7 +59,7 @@ class PluginHost {
 
   private frameSrc(pluginId: string, surface: string): string {
     const entry = this.entryFor(pluginId);
-    return `edp://${pluginId}/${entry}?surface=${encodeURIComponent(surface)}&plugin=${encodeURIComponent(pluginId)}`;
+    return `wzp://${pluginId}/${entry}?surface=${encodeURIComponent(surface)}&plugin=${encodeURIComponent(pluginId)}`;
   }
 
   cacheManifest(manifest: PluginManifest) {
@@ -69,7 +69,7 @@ class PluginHost {
   private createFrame(pluginId: string, surface: string, hidden: boolean): HTMLIFrameElement {
     const iframe = document.createElement('iframe');
     const key = `${pluginId}::${surface}`;
-    iframe.setAttribute('data-edp-frame', key);
+    iframe.setAttribute('data-wz-frame', key);
     iframe.setAttribute('title', `${pluginId} (${surface})`);
     if (hidden) {
       iframe.style.display = 'none';
@@ -127,7 +127,7 @@ class PluginHost {
   async ensureLogicFrame(pluginId: string): Promise<void> {
     const key = `${pluginId}::logic`;
     if (this.frames.has(key)) return;
-    const host = document.getElementById('edp-logic-frames');
+    const host = document.getElementById('wz-logic-frames');
     if (!host) throw new Error('logic frame container missing');
     const frame = this.createFrame(pluginId, 'logic', true);
     host.appendChild(frame);
@@ -163,32 +163,32 @@ class PluginHost {
     };
 
     switch (type) {
-      case 'edp-ready': {
+      case 'wz-ready': {
         frame.ready = true;
         frame.initSent = true;
         post({
-          type: 'edp-init',
+          type: 'wz-init',
           pluginId: frame.pluginId,
           surface: frame.surface,
           apiVersion: '1',
         });
         break;
       }
-      case 'edp-manifest-request': {
+      case 'wz-manifest-request': {
         const manifest = this.manifestCache.get(frame.pluginId);
-        if (manifest) post({ type: 'edp-manifest', manifest });
+        if (manifest) post({ type: 'wz-manifest', manifest });
         else {
           // Fetch from the kernel and cache.
           void rpc<{ manifest: PluginManifest }>(Methods.plugins.get, { id: frame.pluginId })
             .then((info) => {
               this.manifestCache.set(frame.pluginId, info.manifest);
-              post({ type: 'edp-manifest', manifest: info.manifest });
+              post({ type: 'wz-manifest', manifest: info.manifest });
             })
-            .catch(() => post({ type: 'edp-manifest', manifest: null }));
+            .catch(() => post({ type: 'wz-manifest', manifest: null }));
         }
         break;
       }
-      case 'edp-rpc': {
+      case 'wz-rpc': {
         const { id, method, params } = msg as {
           id: number;
           method: string;
@@ -199,10 +199,10 @@ class PluginHost {
         // dropped, so we explicitly inject it.
         const stamped = { ...params, __plugin: frame.pluginId };
         void rpc(method, stamped)
-          .then((result) => post({ type: 'edp-rpc-result', id, ok: true, result }))
+          .then((result) => post({ type: 'wz-rpc-result', id, ok: true, result }))
           .catch((err: { code?: string; message?: string }) =>
             post({
-              type: 'edp-rpc-result',
+              type: 'wz-rpc-result',
               id,
               ok: false,
               error: {
@@ -213,7 +213,7 @@ class PluginHost {
           );
         break;
       }
-      case 'edp-command-result': {
+      case 'wz-command-result': {
         const { requestId, ok, result, error } = msg as {
           requestId: number;
           ok: boolean;
@@ -244,7 +244,7 @@ class PluginHost {
       }, COMMAND_TIMEOUT_MS);
       this.pendingCommands.set(requestId, { resolve, reject, timer });
       frame.iframe.contentWindow!.postMessage(
-        { type: 'edp-command', requestId, id: commandId, args },
+        { type: 'wz-command', requestId, id: commandId, args },
         '*',
       );
     });
@@ -257,7 +257,7 @@ class PluginHost {
     for (const frame of this.frames.values()) {
       if (frame.pluginId !== msg.plugin) continue;
       frame.iframe.contentWindow?.postMessage(
-        { type: 'edp-push', topic: msg.topic, data: msg.data },
+        { type: 'wz-push', topic: msg.topic, data: msg.data },
         '*',
       );
     }
@@ -267,7 +267,7 @@ class PluginHost {
   broadcastEvent(event: { name: string; data: unknown }) {
     for (const frame of this.frames.values()) {
       frame.iframe.contentWindow?.postMessage(
-        { type: 'edp-push', topic: 'event', data: event },
+        { type: 'wz-push', topic: 'event', data: event },
         '*',
       );
     }

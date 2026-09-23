@@ -59,8 +59,8 @@ jobs:
           wb plugin pack demo-notes
           python3 - <<'EOF'
           import glob, zipfile
-          zips = glob.glob('demo-notes/*.edplugin.zip')
-          assert zips, 'no .edplugin.zip produced'
+          zips = glob.glob('demo-notes/*.wzplugin.zip')
+          assert zips, 'no .wzplugin.zip produced'
           z = zipfile.ZipFile(zips[0])
           assert 'plugin.json' in z.namelist(), 'plugin.json missing from archive'
           assert z.testzip() is None, 'crc failure'

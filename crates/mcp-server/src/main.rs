@@ -1,12 +1,12 @@
-//! `eigendesk-mcp`: a restricted MCP server exposing user-approved
-//! EigenDesk workspace capabilities to external agents over stdio
+//! `wz-mcp`: a restricted MCP server exposing user-approved
+//! Workbench Zero workspace capabilities to external agents over stdio
 //! (spec §55-57).
 //!
 //! Security model:
 //!   - The server is read-only: it lists and reads, it never writes.
 //!   - Nothing is exposed by default. Every tool must be explicitly allowed
 //!     via `--allow tool1,tool2` or the config file
-//!     `~/.config/eigendesk/mcp-server.json` (`{"allow": [...]}`).
+//!     `~/.config/workbench-zero/mcp-server.json` (`{"allow": [...]}`).
 //!   - The server is a separate process with no connection to the running
 //!     app: it opens the workspace directory directly, so it cannot touch
 //!     app state, secrets, or terminals.
@@ -279,9 +279,9 @@ fn main() {
                 }
             }
             "--help" => {
-                eprintln!("eigendesk-mcp — restricted MCP server for EigenDesk workspaces");
+                eprintln!("wz-mcp — restricted MCP server for Workbench Zero workspaces");
                 eprintln!();
-                eprintln!("Usage: eigendesk-mcp --workspace <dir> [--allow tool1,tool2,...]");
+                eprintln!("Usage: wz-mcp --workspace <dir> [--allow tool1,tool2,...]");
                 eprintln!();
                 eprintln!(
                     "Tools: {}",
@@ -292,7 +292,9 @@ fn main() {
                         .join(", ")
                 );
                 eprintln!();
-                eprintln!("Alternatively configure allows in ~/.config/eigendesk/mcp-server.json:");
+                eprintln!(
+                    "Alternatively configure allows in ~/.config/workbench-zero/mcp-server.json:"
+                );
                 eprintln!("  {{\"allow\": [\"memo.list\", \"tasks.today\"]}}");
                 std::process::exit(0);
             }
@@ -353,7 +355,7 @@ fn main() {
             "initialize" => Ok(json!({
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": { "tools": {} },
-                "serverInfo": { "name": "eigendesk-mcp", "version": env!("CARGO_PKG_VERSION") }
+                "serverInfo": { "name": "wz-mcp", "version": env!("CARGO_PKG_VERSION") }
             })),
             "notifications/initialized" => {
                 // Notification: no response.
@@ -401,14 +403,16 @@ fn main() {
 fn dirs_config_path() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
         if !xdg.is_empty() {
-            return PathBuf::from(xdg).join("eigendesk").join("mcp-server.json");
+            return PathBuf::from(xdg)
+                .join("workbench-zero")
+                .join("mcp-server.json");
         }
     }
     if let Ok(home) = std::env::var("HOME") {
         return PathBuf::from(home)
             .join(".config")
-            .join("eigendesk")
+            .join("workbench-zero")
             .join("mcp-server.json");
     }
-    PathBuf::from("eigendesk-mcp.json")
+    PathBuf::from("wz-mcp.json")
 }

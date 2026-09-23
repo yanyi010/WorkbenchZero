@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-23
-- Deciders: EigenDesk core
+- Deciders: Workbench Zero core
 
 ## Context
 
@@ -18,9 +18,9 @@ belongs to the *app install*.
   Memos/*.md                 frontmatter + Markdown (memo plugin)
   Stickies/*.md              sticky plugin
   Tasks/tasks.json           tasks plugin
-  .eigendesk/                workspace-scoped settings/index caches
+  .workbench-zero/                workspace-scoped settings/index caches
 
-~/.local/share/eigendesk/    app-owned (XDG data)
+~/.local/share/workbench-zero/    app-owned (XDG data)
   plugins.json               install/enabled state
   plugins/<id>/              installed user plugins
   dev-plugins/<id>/          `wb plugin dev` hot-reload target
@@ -28,9 +28,9 @@ belongs to the *app install*.
   plugin-state/<id>.json     quota'd plugin KV (64 MiB default)
   secrets-fallback.json      only when no OS keychain (ADR-0007)
 
-~/.config/eigendesk/         global settings, workspace registry
-~/.cache/eigendesk/          derived caches (search index shards)
-~/.local/share/eigendesk/logs/  structured app log
+~/.config/workbench-zero/         global settings, workspace registry
+~/.cache/workbench-zero/          derived caches (search index shards)
+~/.local/share/workbench-zero/logs/  structured app log
 ```
 
 Rules:
@@ -41,7 +41,7 @@ Rules:
    memos.
 2. Plugin KV storage is quota-capped and lives in app data; it is
    scratch, not a product-data substitute.
-3. `.edplugin.zip` packages are deterministic (stored zip, fixed
+3. `.wzplugin.zip` packages are deterministic (stored zip, fixed
    timestamps) so package hashes are meaningful (spec §90).
 
 ## Consequences

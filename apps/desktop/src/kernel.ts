@@ -4,8 +4,8 @@
  * (ADR-0003). Plugin iframes never see this module.
  */
 import { invoke } from '@tauri-apps/api/core';
-import type { RpcRequest, RpcResponse } from '@eigendesk/protocol';
-import { KernelRpcError, Methods } from '@eigendesk/protocol';
+import type { RpcRequest, RpcResponse } from '@workbench-zero/protocol';
+import { KernelRpcError, Methods } from '@workbench-zero/protocol';
 
 let token: string | null = null;
 let nextId = 1;

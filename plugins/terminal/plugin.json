@@ -1,39 +1,39 @@
 {
-  "id": "eigendesk.terminal",
+  "id": "zero.terminal",
   "name": "Terminal",
   "version": "0.1.0",
   "apiVersion": "1",
   "description": "Embedded terminal backed by the kernel PTY service.",
-  "publisher": "eigendesk",
+  "publisher": "zero",
   "trust": "trusted",
   "permissions": ["process:spawn"],
-  "activationEvents": ["onView:eigendesk.terminal.main", "onEvent:workspace.opened"],
+  "activationEvents": ["onView:zero.terminal.main", "onEvent:workspace.opened"],
   "contributes": {
     "commands": [
       {
-        "id": "eigendesk.terminal.open",
+        "id": "zero.terminal.open",
         "title": "Open Terminal",
         "category": "Terminal",
-        "opensView": "eigendesk.terminal.main"
+        "opensView": "zero.terminal.main"
       }
     ],
-    "views": [{ "id": "eigendesk.terminal.main", "title": "Terminal", "icon": "▶", "location": "main" }],
+    "views": [{ "id": "zero.terminal.main", "title": "Terminal", "icon": "▶", "location": "main" }],
     "settings": [
       {
-        "key": "eigendesk.terminal.shell",
+        "key": "zero.terminal.shell",
         "type": "string",
         "title": "Shell",
         "description": "Shell executable. Empty = auto-detect ($SHELL, then bash).",
         "default": ""
       },
       {
-        "key": "eigendesk.terminal.fontSize",
+        "key": "zero.terminal.fontSize",
         "type": "number",
         "title": "Font size (px)",
         "default": 13
       }
     ],
     "searchProviders": [],
-    "statusItems": [{ "id": "eigendesk.terminal.sessions", "title": "Terminal sessions", "command": "eigendesk.terminal.open" }]
+    "statusItems": [{ "id": "zero.terminal.sessions", "title": "Terminal sessions", "command": "zero.terminal.open" }]
   }
 }

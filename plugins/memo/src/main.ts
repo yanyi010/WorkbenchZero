@@ -6,10 +6,10 @@
  * File names are `YYYYMMDD-HHmmss-<slug>.md` so the directory stays
  * human-sortable even outside the app.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import { renderMarkdown } from '@eigendesk/plugin-sdk/markdown';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
-import type { ReadDirResult } from '@eigendesk/protocol';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import { renderMarkdown } from '@workbench-zero/plugin-sdk/markdown';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
+import type { ReadDirResult } from '@workbench-zero/protocol';
 import { parseMemo, serializeMemo } from './frontmatter';
 
 interface Memo {
@@ -69,7 +69,7 @@ function sortMemos(list: Memo[]): Memo[] {
 
 async function scanWorkspace(): Promise<void> {
   const seq = ++scanSeq;
-  dirName = (await ctx.settings.get<string>('eigendesk.memo.directory')) ?? 'Memos';
+  dirName = (await ctx.settings.get<string>('zero.memo.directory')) ?? 'Memos';
   const ws = await ctx.workspace.current();
   if (!ws) {
     memos = [];
@@ -357,10 +357,10 @@ definePlugin({
 
     // Commands from the manifest (Quick Capture lands here).
     ctx.commands.onCommand((id, args) => {
-      if (id === 'eigendesk.memo.new') {
+      if (id === 'zero.memo.new') {
         return createMemo(args ?? '');
       }
-      if (id === 'eigendesk.memo.open') {
+      if (id === 'zero.memo.open') {
         return scanWorkspace().then(drawMain);
       }
       return undefined;
@@ -375,7 +375,7 @@ definePlugin({
     ctx.events.on('workspace.opened', () => {
       activeUri = null;
       void scanWorkspace().then(() => {
-        if (ctx.surface === 'view:eigendesk.memo.main') drawMain();
+        if (ctx.surface === 'view:zero.memo.main') drawMain();
         else if (ctx.surface.startsWith('widget:')) drawWidget();
       });
     });
@@ -395,7 +395,7 @@ definePlugin({
       return;
     }
     await scanWorkspace();
-    if (ctx.surface === 'view:eigendesk.memo.main') drawMain();
+    if (ctx.surface === 'view:zero.memo.main') drawMain();
     else if (ctx.surface.startsWith('widget:')) drawWidget();
   },
 });

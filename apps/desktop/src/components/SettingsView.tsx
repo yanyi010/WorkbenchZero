@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { SettingDescriptor } from '@eigendesk/protocol';
-import { Methods } from '@eigendesk/protocol';
-import { Button, Card, Input, Table, Tabs } from '@eigendesk/ui-kit';
+import type { SettingDescriptor } from '@workbench-zero/protocol';
+import { Methods } from '@workbench-zero/protocol';
+import { Button, Card, Input, Table, Tabs } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 

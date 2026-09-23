@@ -1,4 +1,4 @@
-import { Dialog, Table } from '@eigendesk/ui-kit';
+import { Dialog, Table } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 
 export function ShortcutsOverlay() {

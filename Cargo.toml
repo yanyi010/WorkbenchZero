@@ -20,20 +20,20 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["EigenDesk contributors"]
+authors = ["Workbench Zero contributors"]
 
 [workspace.dependencies]
-eigendesk-permissions = { path = "crates/permissions" }
-eigendesk-commands = { path = "crates/commands" }
-eigendesk-events = { path = "crates/events" }
-eigendesk-settings = { path = "crates/settings" }
-eigendesk-storage = { path = "crates/storage" }
-eigendesk-secrets = { path = "crates/secrets" }
-eigendesk-artifacts = { path = "crates/artifacts" }
-eigendesk-search = { path = "crates/search" }
-eigendesk-workspace = { path = "crates/workspace" }
-eigendesk-plugin-runtime = { path = "crates/plugin-runtime" }
-eigendesk-kernel = { path = "crates/kernel" }
+wz-permissions = { path = "crates/permissions" }
+wz-commands = { path = "crates/commands" }
+wz-events = { path = "crates/events" }
+wz-settings = { path = "crates/settings" }
+wz-storage = { path = "crates/storage" }
+wz-secrets = { path = "crates/secrets" }
+wz-artifacts = { path = "crates/artifacts" }
+wz-search = { path = "crates/search" }
+wz-workspace = { path = "crates/workspace" }
+wz-plugin-runtime = { path = "crates/plugin-runtime" }
+wz-kernel = { path = "crates/kernel" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

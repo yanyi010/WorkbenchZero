@@ -1,14 +1,14 @@
 /**
- * EigenDesk shell entry. Bootstrap order (ADR-0003):
+ * Workbench Zero shell entry. Bootstrap order (ADR-0003):
  *  1. issue the kernel token (first caller wins — before any iframe),
  *  2. install the kernel push inbox + Quick Capture global hook,
  *  3. boot the store, then render.
  */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@eigendesk/ui-kit/tokens.css';
+import '@workbench-zero/ui-kit/tokens.css';
 import './styles.css';
-import type { PushMessage } from '@eigendesk/protocol';
+import type { PushMessage } from '@workbench-zero/protocol';
 import { issueToken } from './kernel';
 import { pluginHost } from './pluginHost';
 import { useApp } from './store';

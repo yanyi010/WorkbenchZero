@@ -1,7 +1,7 @@
 //! Small helpers for workspace-scoped SQLite services (artifacts + search).
 
-use eigendesk_artifacts::ArtifactRegistry;
-use eigendesk_search::SearchIndex;
+use wz_artifacts::ArtifactRegistry;
+use wz_search::SearchIndex;
 
 use crate::{KResult, WorkspaceState};
 

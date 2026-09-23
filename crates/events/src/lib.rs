@@ -158,7 +158,7 @@ mod tests {
         let mut sub = bus.subscribe(Some("memo.created".into()));
         let delivered = bus.emit(
             "memo.created",
-            Some("eigendesk.memo".into()),
+            Some("zero.memo".into()),
             serde_json::json!({"uri": "memo://1"}),
         );
         assert_eq!(delivered, 1);

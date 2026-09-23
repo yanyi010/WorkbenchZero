@@ -227,7 +227,7 @@ mod tests {
             body: body.into(),
             tags: vec!["research".into()],
             metadata: None,
-            plugin_id: "eigendesk.memo".into(),
+            plugin_id: "zero.memo".into(),
         }
     }
 
@@ -278,11 +278,11 @@ mod tests {
                     body: "b".into(),
                     tags: vec![],
                     metadata: None,
-                    plugin_id: "eigendesk.tasks".into(),
+                    plugin_id: "zero.tasks".into(),
                 },
             ])
             .unwrap();
-            assert_eq!(idx.remove_by_plugin("eigendesk.memo").unwrap(), 1);
+            assert_eq!(idx.remove_by_plugin("zero.memo").unwrap(), 1);
             assert_eq!(idx.query("a", 10).unwrap().len(), 0);
             assert_eq!(idx.count().unwrap(), 1);
         });

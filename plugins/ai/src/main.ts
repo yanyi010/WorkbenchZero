@@ -7,9 +7,9 @@
  * (spec §54). Before sending, the privacy line states exactly which
  * endpoint the text goes to (spec §51).
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import { renderMarkdown } from '@eigendesk/plugin-sdk/markdown';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import { renderMarkdown } from '@workbench-zero/plugin-sdk/markdown';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
 
 interface ChatMsg {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -57,7 +57,7 @@ interface StreamEvents {
 }
 
 async function apiKey(): Promise<string | undefined> {
-  const name = (await ctx.settings.get<string>('eigendesk.ai.apiKeySecret')) ?? 'eigendesk.ai.apiKey';
+  const name = (await ctx.settings.get<string>('zero.ai.apiKeySecret')) ?? 'zero.ai.apiKey';
   try {
     const value = await ctx.secrets.get(name);
     return value ?? undefined;
@@ -67,9 +67,9 @@ async function apiKey(): Promise<string | undefined> {
 }
 
 async function chatRequest(messages: ChatMsg[], tools: ToolSpec[], ev: StreamEvents): Promise<void> {
-  const base = (await ctx.settings.get<string>('eigendesk.ai.baseUrl')) ?? '';
-  modelId = (await ctx.settings.get<string>('eigendesk.ai.model')) ?? '';
-  const maxTokens = (await ctx.settings.get<number>('eigendesk.ai.maxTokens')) ?? 2048;
+  const base = (await ctx.settings.get<string>('zero.ai.baseUrl')) ?? '';
+  modelId = (await ctx.settings.get<string>('zero.ai.model')) ?? '';
+  const maxTokens = (await ctx.settings.get<number>('zero.ai.maxTokens')) ?? 2048;
   if (!base || !modelId) throw new Error('Quick Ask is not configured — set Base URL and Model in Settings');
   const key = await apiKey();
 
@@ -309,7 +309,7 @@ function messageNode(m: UiMessage): HTMLElement {
 
 function draw(): void {
   const app = document.getElementById('app');
-  if (!app || ctx.surface !== 'view:eigendesk.ai.chat') return;
+  if (!app || ctx.surface !== 'view:zero.ai.chat') return;
   const log = document.querySelector('.ai-log');
   const atBottom = !!log && log.scrollHeight - log.scrollTop - log.clientHeight < 40;
 
@@ -358,8 +358,8 @@ function draw(): void {
 }
 
 async function checkConfig(): Promise<void> {
-  const base = (await ctx.settings.get<string>('eigendesk.ai.baseUrl')) ?? '';
-  const model = (await ctx.settings.get<string>('eigendesk.ai.model')) ?? '';
+  const base = (await ctx.settings.get<string>('zero.ai.baseUrl')) ?? '';
+  const model = (await ctx.settings.get<string>('zero.ai.model')) ?? '';
   endpoint = base;
   modelId = model;
   configured = !!(base && model);
@@ -371,7 +371,7 @@ definePlugin({
 
     // Quick Ask entry (from the capture router `?` prefix).
     ctx.commands.onCommand((id, args) => {
-      if (id === 'eigendesk.ai.quickAsk') {
+      if (id === 'zero.ai.quickAsk') {
         const question = (args ?? '').trim();
         if (!question) return Promise.resolve();
         ui = [];
@@ -379,7 +379,7 @@ definePlugin({
         appendUi({ role: 'user', content: question });
         return send(question);
       }
-      if (id === 'eigendesk.ai.open') {
+      if (id === 'zero.ai.open') {
         return checkConfig().then(draw);
       }
       return undefined;
@@ -390,7 +390,7 @@ definePlugin({
       if (text.trim()) void send(text);
     });
 
-    if (ctx.surface === 'view:eigendesk.ai.chat') {
+    if (ctx.surface === 'view:zero.ai.chat') {
       await checkConfig();
       draw();
     }

@@ -1,9 +1,9 @@
 //! Storage service: application directories and per-plugin state stores.
 //!
 //! Layout (XDG on Linux):
-//!   ~/.config/eigendesk/            global settings, workspaces registry
-//!   ~/.local/share/eigendesk/       data: plugins, registry, logs, secrets
-//!   ~/.cache/eigendesk/             disposable cache
+//!   ~/.config/workbench-zero/            global settings, workspaces registry
+//!   ~/.local/share/workbench-zero/       data: plugins, registry, logs, secrets
+//!   ~/.cache/workbench-zero/             disposable cache
 //!
 //! Inside a workspace, `.workbench/` holds (spec §8):
 //!   workspace.json   workspace metadata + schema version
@@ -65,13 +65,13 @@ impl Dirs {
             None => (
                 dirs::config_dir()
                     .ok_or_else(|| io_err("no config dir"))?
-                    .join("eigendesk"),
+                    .join("workbench-zero"),
                 dirs::data_dir()
                     .ok_or_else(|| io_err("no data dir"))?
-                    .join("eigendesk"),
+                    .join("workbench-zero"),
                 dirs::cache_dir()
                     .ok_or_else(|| io_err("no cache dir"))?
-                    .join("eigendesk"),
+                    .join("workbench-zero"),
             ),
         };
         let logs = data.join("logs");
@@ -238,7 +238,12 @@ mod tests {
 
     #[test]
     fn kv_roundtrip_and_persistence() {
-        let root = std::env::temp_dir().join(format!("ed-store-{}", std::process::id()));
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "wz-store-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         let _ = std::fs::remove_dir_all(&root);
         {
             let store = PluginStateStore::open(&root, "test.plugin").unwrap();
@@ -257,7 +262,12 @@ mod tests {
 
     #[test]
     fn invalid_keys_rejected() {
-        let root = std::env::temp_dir().join(format!("ed-store-bad-{}", std::process::id()));
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "wz-store-bad-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         let _ = std::fs::remove_dir_all(&root);
         let store = PluginStateStore::open(&root, "test.plugin").unwrap();
         assert!(store.set("", serde_json::json!(1)).is_err());

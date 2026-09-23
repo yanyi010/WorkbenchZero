@@ -1,6 +1,6 @@
 /**
  * Bridge integration tests: a fake host window (window.parent) that
- * speaks the edp-* protocol, driving the real SDK module in jsdom.
+ * speaks the wz-* protocol, driving the real SDK module in jsdom.
  *
  * Each test re-imports the SDK (`vi.resetModules()` + dynamic import) so
  * module-level bridge state is fresh. The fake host dispatches messages
@@ -55,12 +55,12 @@ class FakeHost {
   }
 
   init(pluginId = 'test.demo', surface = 'view:demo.main') {
-    this.send({ type: 'edp-init', pluginId, surface, apiVersion: '1' });
+    this.send({ type: 'wz-init', pluginId, surface, apiVersion: '1' });
   }
 
   sendManifest() {
     this.send({
-      type: 'edp-manifest',
+      type: 'wz-manifest',
       manifest: {
         id: 'test.demo',
         name: 'Demo',
@@ -72,10 +72,10 @@ class FakeHost {
   }
 
   rpcResult(id: number, ok: boolean, payload: unknown) {
-    if (ok) this.send({ type: 'edp-rpc-result', id, ok: true, result: payload });
+    if (ok) this.send({ type: 'wz-rpc-result', id, ok: true, result: payload });
     else
       this.send({
-        type: 'edp-rpc-result',
+        type: 'wz-rpc-result',
         id,
         ok: false,
         error: payload as { code: string; message: string },
@@ -85,7 +85,7 @@ class FakeHost {
   /** Auto-respond to plugin RPCs with a canned result. */
   autoReply(handler: (method: string, params: Record<string, unknown>, id: number) => unknown) {
     return this.on((msg) => {
-      if (msg.type !== 'edp-rpc') return;
+      if (msg.type !== 'wz-rpc') return;
       const result = handler(
         msg.method as string,
         msg.params as Record<string, unknown>,
@@ -101,7 +101,7 @@ async function freshPlugin() {
   const host = new FakeHost();
   host.install();
   host.on((msg) => {
-    if (msg.type === 'edp-manifest-request') host.sendManifest();
+    if (msg.type === 'wz-manifest-request') host.sendManifest();
   });
   const mod = await import('./index');
   return { host, mod };
@@ -134,7 +134,7 @@ describe('plugin-sdk bridge', () => {
       expect(
         host.received.some(
           (m) =>
-            m.type === 'edp-rpc' &&
+            m.type === 'wz-rpc' &&
             m.method === 'plugin.log' &&
             String((m.params as { message?: string })?.message ?? '').includes('activated'),
         ),
@@ -155,11 +155,11 @@ describe('plugin-sdk bridge', () => {
 
     await vi.waitFor(() =>
       expect(
-        host.received.find((m) => m.type === 'edp-rpc' && m.method === 'plugins.reportFailure'),
+        host.received.find((m) => m.type === 'wz-rpc' && m.method === 'plugins.reportFailure'),
       ).toBeTruthy(),
     );
     const call = host.received.find(
-      (m) => m.type === 'edp-rpc' && m.method === 'plugins.reportFailure',
+      (m) => m.type === 'wz-rpc' && m.method === 'plugins.reportFailure',
     )!;
     expect(call.params).toMatchObject({
       id: 'test.demo',
@@ -184,22 +184,22 @@ describe('plugin-sdk bridge', () => {
     // events
     const seen: unknown[] = [];
     c.events.on('demo.ping', (d) => seen.push(d));
-    host.send({ type: 'edp-push', topic: 'event', data: { name: 'demo.ping', data: 42 } });
-    host.send({ type: 'edp-push', topic: 'event', data: { name: 'other', data: 'nope' } });
+    host.send({ type: 'wz-push', topic: 'event', data: { name: 'demo.ping', data: 42 } });
+    host.send({ type: 'wz-push', topic: 'event', data: { name: 'other', data: 'nope' } });
     expect(seen).toEqual([42]);
 
     // pty data arrives base64-encoded and is decoded
     const ptyOut: string[] = [];
     c.pty.onData('pty-1', (d) => ptyOut.push(d));
     const b64 = btoa(String.fromCharCode(...new TextEncoder().encode('héllo ✓')));
-    host.send({ type: 'edp-push', topic: 'pty', data: { sessionId: 'pty-1', data: b64 } });
+    host.send({ type: 'wz-push', topic: 'pty', data: { sessionId: 'pty-1', data: b64 } });
     expect(ptyOut).toEqual(['héllo ✓']);
 
     // pty exit
     let exit: { success: boolean } | null = null;
     c.pty.onExit('pty-1', (info) => (exit = info));
     host.send({
-      type: 'edp-push',
+      type: 'wz-push',
       topic: 'pty',
       data: { sessionId: 'pty-1', kind: 'exit', success: true },
     });
@@ -207,7 +207,7 @@ describe('plugin-sdk bridge', () => {
 
     // pty.write sends base64
     await c.pty.write('pty-1', 'ls -la\n');
-    const write = host.received.find((m) => m.type === 'edp-rpc' && m.method === 'pty.write');
+    const write = host.received.find((m) => m.type === 'wz-rpc' && m.method === 'pty.write');
     expect(write).toBeTruthy();
     expect((write!.params as { sessionId: string }).sessionId).toBe('pty-1');
     const sent = (write!.params as { data: string }).data;
@@ -216,14 +216,14 @@ describe('plugin-sdk bridge', () => {
     // ai tool call round-trip
     let toolResultParams: Record<string, unknown> | null = null;
     host.on((msg) => {
-      if (msg.type === 'edp-rpc' && msg.method === 'ai.toolResult') {
+      if (msg.type === 'wz-rpc' && msg.method === 'ai.toolResult') {
         toolResultParams = msg.params as Record<string, unknown>;
         host.rpcResult(msg.id as number, true, null);
       }
     });
     c.ai.onToolCall(async (name, args) => ({ name, args, echoed: true }));
     host.send({
-      type: 'edp-push',
+      type: 'wz-push',
       topic: 'plugin-push',
       data: { kind: 'ai-tool-call', tool: 'demo.tool', args: { x: 1 }, requestId: 7 },
     });
@@ -237,15 +237,15 @@ describe('plugin-sdk bridge', () => {
 
     // Delay the streamId response so chunks arrive "early".
     host.on((msg) => {
-      if (msg.type !== 'edp-rpc' || msg.method !== 'network.fetchStream') return;
+      if (msg.type !== 'wz-rpc' || msg.method !== 'network.fetchStream') return;
       const id = msg.id as number;
       host.send({
-        type: 'edp-push',
+        type: 'wz-push',
         topic: 'net',
         data: { kind: 'net-chunk', payload: { streamId: 'net-1', data: 'hello ' } },
       });
       host.send({
-        type: 'edp-push',
+        type: 'wz-push',
         topic: 'net',
         data: { kind: 'net-chunk', payload: { streamId: 'net-1', data: 'world' } },
       });
@@ -274,13 +274,13 @@ describe('plugin-sdk bridge', () => {
     expect(ended).toBe(false);
     // …and live chunks keep flowing.
     host.send({
-      type: 'edp-push',
+      type: 'wz-push',
       topic: 'net',
       data: { kind: 'net-chunk', payload: { streamId: 'net-1', data: '!' } },
     });
     expect(chunks).toEqual(['hello ', 'world', '!']);
     host.send({
-      type: 'edp-push',
+      type: 'wz-push',
       topic: 'net',
       data: { kind: 'net-end', payload: { streamId: 'net-1' } },
     });
@@ -290,7 +290,7 @@ describe('plugin-sdk bridge', () => {
   it('RPC errors surface as KernelRpcError rejections', async () => {
     const { host, mod } = await freshPlugin();
     host.on((msg) => {
-      if (msg.type === 'edp-rpc' && msg.method === 'storage.set') {
+      if (msg.type === 'wz-rpc' && msg.method === 'storage.set') {
         host.rpcResult(
           msg.id as number,
           false,

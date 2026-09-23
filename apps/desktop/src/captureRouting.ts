@@ -7,7 +7,7 @@
  *  - plain text routes to the highest-priority provider without prefixes,
  *  - core never depends on a specific plugin.
  */
-import type { CaptureProviderContribution } from '@eigendesk/protocol';
+import type { CaptureProviderContribution } from '@workbench-zero/protocol';
 
 export interface CaptureRouteInput {
   pluginId: string;

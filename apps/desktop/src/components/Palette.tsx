@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ArtifactRecord } from '@eigendesk/protocol';
-import type { CommandListItem } from '@eigendesk/ui-kit';
-import { Methods } from '@eigendesk/protocol';
-import { CommandList } from '@eigendesk/ui-kit';
+import type { ArtifactRecord } from '@workbench-zero/protocol';
+import type { CommandListItem } from '@workbench-zero/ui-kit';
+import { Methods } from '@workbench-zero/protocol';
+import { CommandList } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 
@@ -79,7 +79,7 @@ export function Palette() {
         item: {
           id: `cmd:${cmd.id}`,
           title: cmd.title,
-          subtitle: cmd.pluginId ?? 'EigenDesk core',
+          subtitle: cmd.pluginId ?? 'Workbench Zero core',
           detail: cmd.category ?? undefined,
           group: 'Commands',
           keyhint: cmd.defaultKeybinding ?? undefined,

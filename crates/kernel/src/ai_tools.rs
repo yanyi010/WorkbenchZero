@@ -68,7 +68,7 @@ impl AiToolRegistry {
     pub fn register_manifest_tools(
         &self,
         plugin_id: &str,
-        manifest_tools: &[eigendesk_plugin_runtime::AiToolContribution],
+        manifest_tools: &[wz_plugin_runtime::AiToolContribution],
     ) {
         self.unregister_by_plugin(plugin_id);
         for t in manifest_tools {

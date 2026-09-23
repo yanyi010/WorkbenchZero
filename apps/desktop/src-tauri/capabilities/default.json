@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capabilities for the EigenDesk main window. Plugin iframes never receive these: they are cross-origin (edp:// scheme) and communicate only through the bridge.",
+  "description": "Capabilities for the Workbench Zero main window. Plugin iframes never receive these: they are cross-origin (wzp:// scheme) and communicate only through the bridge.",
   "windows": ["main"],
   "permissions": [
     "core:default",

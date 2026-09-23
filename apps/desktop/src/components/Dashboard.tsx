@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Card, EmptyState } from '@eigendesk/ui-kit';
+import { Card, EmptyState } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { pluginHost, startupActivationPlugins } from '../pluginHost';
 
@@ -43,7 +43,7 @@ export function Dashboard() {
     <div className="ed-scroll">
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         <Card
-          title={workspace ? `Good to see you — ${workspace.name}` : 'Welcome to EigenDesk'}
+          title={workspace ? `Good to see you — ${workspace.name}` : 'Welcome to Workbench Zero'}
           actions={
             <span style={{ color: 'var(--ed-muted)', fontSize: 'var(--ed-text-sm)' }}>
               Ctrl+K commands · Alt+Space capture · Ctrl+P search

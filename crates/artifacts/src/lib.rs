@@ -247,7 +247,7 @@ mod tests {
     fn upsert_describe_roundtrip() {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
-        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")])
+        reg.upsert_many(&[rec("memo://1", "zero.memo", "memo")])
             .unwrap();
         let got = reg.describe("memo://1").unwrap();
         assert_eq!(got.title.as_deref(), Some("Title memo://1"));
@@ -258,9 +258,9 @@ mod tests {
     fn upsert_replaces() {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
-        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")])
+        reg.upsert_many(&[rec("memo://1", "zero.memo", "memo")])
             .unwrap();
-        let mut r2 = rec("memo://1", "eigendesk.memo", "memo");
+        let mut r2 = rec("memo://1", "zero.memo", "memo");
         r2.title = Some("New title".into());
         reg.upsert_many(&[r2]).unwrap();
         assert_eq!(
@@ -274,8 +274,8 @@ mod tests {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
         reg.upsert_many(&[
-            rec("memo://a", "eigendesk.memo", "memo"),
-            rec("memo://b", "eigendesk.memo", "memo"),
+            rec("memo://a", "zero.memo", "memo"),
+            rec("memo://b", "zero.memo", "memo"),
         ])
         .unwrap();
         reg.mark_opened("memo://a").unwrap();
@@ -291,11 +291,11 @@ mod tests {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
         reg.upsert_many(&[
-            rec("memo://1", "eigendesk.memo", "memo"),
-            rec("task://2", "eigendesk.tasks", "task"),
+            rec("memo://1", "zero.memo", "memo"),
+            rec("task://2", "zero.tasks", "task"),
         ])
         .unwrap();
-        assert_eq!(reg.remove_by_plugin("eigendesk.memo").unwrap(), 1);
+        assert_eq!(reg.remove_by_plugin("zero.memo").unwrap(), 1);
         assert!(reg.describe("memo://1").is_err());
         assert!(reg.describe("task://2").is_ok());
     }

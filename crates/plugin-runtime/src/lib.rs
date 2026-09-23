@@ -6,7 +6,7 @@
 //!   my-plugin/
 //!   ├── plugin.json     manifest (public API)
 //!   ├── entry.html      plugin UI document (loaded in an isolated iframe)
-//!   └── dist/main.js    bundled plugin code (via @eigendesk/plugin-sdk)
+//!   └── dist/main.js    bundled plugin code (via @workbench-zero/plugin-sdk)
 //!
 //! Trust classes: bundled first-party plugins are `trusted` (auto-granted at
 //! install); everything else is `sandboxed` and runs behind explicit
@@ -16,10 +16,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use eigendesk_permissions::{parse_declarations, Grants, PermissionDeclaration};
-use eigendesk_settings::{Scope, SettingDescriptor, SettingType};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use wz_permissions::{parse_declarations, Grants, PermissionDeclaration};
+use wz_settings::{Scope, SettingDescriptor, SettingType};
 
 /// Supported plugin API generation (spec §41).
 pub const API_VERSION: &str = "1";
@@ -727,20 +727,20 @@ impl PluginManager {
     // -- install / uninstall ------------------------------------------------
 
     /// Install a plugin from a catalog entry (local package path) or from an
-    /// arbitrary directory / `.edplugin.zip` on disk.
+    /// arbitrary directory / `.wzplugin.zip` on disk.
     pub fn install_from(&self, source: &str) -> Result<PluginInfo, PluginError> {
         let path = PathBuf::from(source);
         let staging: PathBuf;
         let src_dir: PathBuf = if path.is_dir() {
             path
         } else if path.extension().map(|e| e == "zip").unwrap_or(false)
-            || path.to_string_lossy().ends_with(".edplugin.zip")
+            || path.to_string_lossy().ends_with(".wzplugin.zip")
         {
             staging = self.extract_zip(&path)?;
             staging
         } else {
             return Err(PluginError::Package(format!(
-                "`{source}` is neither a plugin directory nor a .edplugin.zip"
+                "`{source}` is neither a plugin directory nor a .wzplugin.zip"
             )));
         };
 
@@ -799,11 +799,10 @@ impl PluginManager {
     }
 
     fn extract_zip(&self, zip_path: &Path) -> Result<PathBuf, PluginError> {
-        let staging = self.user_dir.join(".staging").join(format!(
-            "{}-{}",
-            std::process::id(),
-            chrono::Utc::now().timestamp_subsec_nanos()
-        ));
+        let staging = self
+            .user_dir
+            .join(".staging")
+            .join(uuid::Uuid::new_v4().to_string());
         let file =
             std::fs::File::open(zip_path).map_err(|e| PluginError::Package(e.to_string()))?;
         let mut archive =
@@ -1052,22 +1051,20 @@ mod tests {
     }
 
     fn temp() -> PathBuf {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "ed-pr-{}-{}",
+            "wz-pr-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .elapsed()
-                .unwrap()
-                .subsec_nanos()
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
-    /// A `.edplugin.zip` as `wb plugin pack` writes it: STORED entries,
+    /// A `.wzplugin.zip` as `wb plugin pack` writes it: STORED entries,
     /// fixed timestamps, plugin.json at the archive root.
     #[test]
-    fn install_from_edplugin_zip() {
+    fn install_from_wzplugin_zip() {
         let base = temp();
         let src = write_plugin(
             &base.join("pkg-src"),
@@ -1076,7 +1073,7 @@ mod tests {
             r#"["notification"]"#,
         );
 
-        let zip_path = base.join("test-zipped-1.0.0.edplugin.zip");
+        let zip_path = base.join("test-zipped-1.0.0.wzplugin.zip");
         {
             let file = std::fs::File::create(&zip_path).unwrap();
             let mut writer = zip::ZipWriter::new(file);
@@ -1096,7 +1093,7 @@ mod tests {
         assert_eq!(info.state, PluginState::Installed);
 
         // A zip without plugin.json is rejected with a package error.
-        let bad = base.join("bad.edplugin.zip");
+        let bad = base.join("bad.wzplugin.zip");
         {
             let file = std::fs::File::create(&bad).unwrap();
             let mut writer = zip::ZipWriter::new(file);

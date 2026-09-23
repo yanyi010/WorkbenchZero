@@ -1,10 +1,10 @@
 # Plugin API
 
-The public API plugins code against: `@eigendesk/plugin-sdk`.
+The public API plugins code against: `@workbench-zero/plugin-sdk`.
 
 ```ts
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import { renderMarkdown } from '@eigendesk/plugin-sdk/markdown';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import { renderMarkdown } from '@workbench-zero/plugin-sdk/markdown';
 
 definePlugin({
   async activate(ctx) {
@@ -40,8 +40,8 @@ definePlugin({
 
 ## Bridge protocol
 
-See ADR-0004 for the wire (`edp-ready`/`edp-init`/`edp-rpc`/
-`edp-command`/`edp-push`). The SDK is the only sanctioned client; the
+See ADR-0004 for the wire (`wz-ready`/`wz-init`/`wz-rpc`/
+`wz-command`/`wz-push`). The SDK is the only sanctioned client; the
 protocol is versioned via the manifest `apiVersion: "1"`.
 
 ## Testing plugins

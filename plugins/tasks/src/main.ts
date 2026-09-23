@@ -3,8 +3,8 @@
  * project, notes. One JSON document per workspace: `Tasks/tasks.json`.
  * Intentionally not Jira.
  */
-import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
-import type { PluginContext } from '@eigendesk/plugin-sdk';
+import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
+import type { PluginContext } from '@workbench-zero/plugin-sdk';
 
 type Status = 'todo' | 'doing' | 'done';
 type Priority = 'low' | 'medium' | 'high';
@@ -342,7 +342,7 @@ function draw(): void {
     );
     return;
   }
-  if (ctx.surface !== 'view:eigendesk.tasks.main') return;
+  if (ctx.surface !== 'view:zero.tasks.main') return;
 
   const projects = [...new Set(tasks.map((t) => t.project).filter((p): p is string => !!p))].sort();
   const selected = tasks.find((t) => t.id === selectedId) ?? null;
@@ -413,8 +413,8 @@ definePlugin({
     ctx = context;
 
     ctx.commands.onCommand((id, args) => {
-      if (id === 'eigendesk.tasks.quickAdd') return quickAdd(args ?? '');
-      if (id === 'eigendesk.tasks.open') {
+      if (id === 'zero.tasks.quickAdd') return quickAdd(args ?? '');
+      if (id === 'zero.tasks.open') {
         return load().then(draw);
       }
       return undefined;
@@ -442,6 +442,6 @@ definePlugin({
     });
 
     await load();
-    if (ctx.surface === 'view:eigendesk.tasks.main' || ctx.surface.startsWith('widget:')) draw();
+    if (ctx.surface === 'view:zero.tasks.main' || ctx.surface.startsWith('widget:')) draw();
   },
 });

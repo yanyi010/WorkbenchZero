@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn precedence_workspace_overrides_global() {
-        let dir = std::env::temp_dir().join(format!("ed-settings-{}", uuid_v4()));
+        let dir = std::env::temp_dir().join(format!("wz-settings-{}", uuid_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = svc(&dir);
         s.register_descriptors(vec![bool_desc("core.test.flag", Scope::Workspace)]);
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn unknown_key_rejected() {
-        let dir = std::env::temp_dir().join(format!("ed-settings-{}", uuid_v4()));
+        let dir = std::env::temp_dir().join(format!("wz-settings-{}", uuid_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = svc(&dir);
         assert!(matches!(
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn type_validation() {
-        let dir = std::env::temp_dir().join(format!("ed-settings-{}", uuid_v4()));
+        let dir = std::env::temp_dir().join(format!("wz-settings-{}", uuid_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = svc(&dir);
         s.register_descriptors(vec![bool_desc("core.test.b", Scope::Global)]);
@@ -318,7 +318,7 @@ mod tests {
 
     #[test]
     fn workspace_scope_needs_workspace() {
-        let dir = std::env::temp_dir().join(format!("ed-settings-{}", uuid_v4()));
+        let dir = std::env::temp_dir().join(format!("wz-settings-{}", uuid_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let s = svc(&dir);
         s.register_descriptors(vec![bool_desc("core.test.w", Scope::Workspace)]);
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn persistence_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("ed-settings-{}", uuid_v4()));
+        let dir = std::env::temp_dir().join(format!("wz-settings-{}", uuid_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         {
             let s = svc(&dir);

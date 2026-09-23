@@ -4,9 +4,9 @@ import type {
   ExtensionPack,
   PermissionName,
   PluginInfo,
-} from '@eigendesk/protocol';
-import { Methods, PERMISSION_DESCRIPTIONS } from '@eigendesk/protocol';
-import { Badge, Button, Dialog, EmptyState, Tabs } from '@eigendesk/ui-kit';
+} from '@workbench-zero/protocol';
+import { Methods, PERMISSION_DESCRIPTIONS } from '@workbench-zero/protocol';
+import { Badge, Button, Dialog, EmptyState, Tabs } from '@workbench-zero/ui-kit';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 

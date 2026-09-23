@@ -1,22 +1,22 @@
 {
-  "id": "eigendesk.files",
+  "id": "zero.files",
   "name": "Files",
   "version": "0.1.0",
   "apiVersion": "1",
   "description": "Workspace file tree with open, rename, move, delete and preview.",
-  "publisher": "eigendesk",
+  "publisher": "zero",
   "trust": "trusted",
   "permissions": ["workspace:read", "workspace:write", "system:open"],
-  "activationEvents": ["onView:eigendesk.files.main", "onEvent:workspace.opened"],
+  "activationEvents": ["onView:zero.files.main", "onEvent:workspace.opened"],
   "contributes": {
     "commands": [
-      { "id": "eigendesk.files.open", "title": "Open Files", "category": "Files", "opensView": "eigendesk.files.main" }
+      { "id": "zero.files.open", "title": "Open Files", "category": "Files", "opensView": "zero.files.main" }
     ],
-    "views": [{ "id": "eigendesk.files.main", "title": "Files", "icon": "🗂", "location": "main" }],
+    "views": [{ "id": "zero.files.main", "title": "Files", "icon": "🗂", "location": "main" }],
     "settings": [],
     "searchProviders": [],
     "fileHandlers": [
-      { "id": "eigendesk.files.text", "mimeType": "text/*", "title": "Open as text" }
+      { "id": "zero.files.text", "mimeType": "text/*", "title": "Open as text" }
     ]
   }
 }

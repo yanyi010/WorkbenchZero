@@ -1075,180 +1075,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
-name = "eigendesk"
-version = "0.1.0"
-dependencies = [
- "eigendesk-kernel",
- "eigendesk-permissions",
- "eigendesk-plugin-runtime",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-opener",
- "tauri-plugin-updater",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-artifacts"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "eigendesk-commands"
-version = "0.1.0"
-dependencies = [
- "serde",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "eigendesk-events"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-kernel"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dirs 5.0.1",
- "eigendesk-artifacts",
- "eigendesk-commands",
- "eigendesk-events",
- "eigendesk-permissions",
- "eigendesk-plugin-runtime",
- "eigendesk-search",
- "eigendesk-secrets",
- "eigendesk-settings",
- "eigendesk-storage",
- "eigendesk-workspace",
- "futures-util",
- "notify",
- "once_cell",
- "portable-pty",
- "reqwest 0.12.28",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "walkdir",
-]
-
-[[package]]
-name = "eigendesk-mcp"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "walkdir",
-]
-
-[[package]]
-name = "eigendesk-permissions"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-plugin-runtime"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "eigendesk-permissions",
- "eigendesk-settings",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.20",
- "tracing",
- "walkdir",
- "zip 2.4.2",
-]
-
-[[package]]
-name = "eigendesk-search"
-version = "0.1.0"
-dependencies = [
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "eigendesk-secrets"
-version = "0.1.0"
-dependencies = [
- "keyring",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-settings"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-storage"
-version = "0.1.0"
-dependencies = [
- "dirs 5.0.1",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tracing",
-]
-
-[[package]]
-name = "eigendesk-workspace"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "embed-resource"
 version = "3.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6564,6 +6390,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
+name = "workbench-zero"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-opener",
+ "tauri-plugin-updater",
+ "tracing",
+ "wz-kernel",
+ "wz-permissions",
+ "wz-plugin-runtime",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6611,6 +6455,163 @@ dependencies = [
  "windows-core 0.61.2",
  "windows-version",
  "x11-dl",
+]
+
+[[package]]
+name = "wz-artifacts"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "wz-commands"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "wz-events"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "wz-kernel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs 5.0.1",
+ "futures-util",
+ "notify",
+ "once_cell",
+ "portable-pty",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "walkdir",
+ "wz-artifacts",
+ "wz-commands",
+ "wz-events",
+ "wz-permissions",
+ "wz-plugin-runtime",
+ "wz-search",
+ "wz-secrets",
+ "wz-settings",
+ "wz-storage",
+ "wz-workspace",
+]
+
+[[package]]
+name = "wz-mcp"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "walkdir",
+]
+
+[[package]]
+name = "wz-permissions"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "wz-plugin-runtime"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "tracing",
+ "uuid",
+ "walkdir",
+ "wz-permissions",
+ "wz-settings",
+ "zip 2.4.2",
+]
+
+[[package]]
+name = "wz-search"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "wz-secrets"
+version = "0.1.0"
+dependencies = [
+ "keyring",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "wz-settings"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "wz-storage"
+version = "0.1.0"
+dependencies = [
+ "dirs 5.0.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "wz-workspace"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -1,25 +1,25 @@
-//! EigenDesk desktop shell: wires the UI-framework-agnostic kernel into
+//! Workbench Zero desktop shell: wires the UI-framework-agnostic kernel into
 //! Tauri 2. Responsibilities kept intentionally thin (spec §122: the shell
 //! coordinates, plugins implement products):
 //!
 //! - one JSON-RPC command (`kernel_rpc`) guarded by a bootstrap token;
 //! - a push sink that evaluates batches into the main frame only (plugin
 //!   iframes have no direct kernel channel);
-//! - the `edp://` scheme serving plugin packages from disk with path
+//! - the `wzp://` scheme serving plugin packages from disk with path
 //!   containment and a strict CSP;
 //! - global Quick Capture shortcut + updater wiring.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use eigendesk_kernel::{Kernel, KernelConfig, PushMessage, RpcRequest, RpcResponse};
 use std::borrow::Cow;
 use tauri::http::{Request, Response};
 use tauri::Manager;
+use wz_kernel::{Kernel, KernelConfig, PushMessage, RpcRequest, RpcResponse};
 
 struct KernelState(Arc<Kernel>);
 
-const EDP_SCHEME: &str = "edp";
+const WZP_SCHEME: &str = "wzp";
 
 #[tauri::command]
 fn kernel_rpc(
@@ -76,10 +76,10 @@ fn push_sink(app: tauri::AppHandle) -> PushSinkFn {
     })
 }
 
-/// Serve plugin package files: `edp://<pluginId>/<path>?surface=...`.
+/// Serve plugin package files: `wzp://<pluginId>/<path>?surface=...`.
 /// Path containment: the resolved file must live inside the plugin's install
 /// directory; symlinks are resolved before the check.
-fn serve_edp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
+fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     let bad_request = |msg: &str| -> Response<Cow<'static, [u8]>> {
         Response::builder()
             .status(400)
@@ -95,7 +95,7 @@ fn serve_edp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
             .unwrap()
     };
 
-    let rest = uri.strip_prefix(&format!("{EDP_SCHEME}://")).unwrap_or("");
+    let rest = uri.strip_prefix(&format!("{WZP_SCHEME}://")).unwrap_or("");
     let (host, path_query) = match rest.split_once('/') {
         Some((h, p)) => (h, p),
         None => (rest, ""),
@@ -103,7 +103,7 @@ fn serve_edp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     let path = path_query.split(['?', '#']).next().unwrap_or("");
     let plugin_id = host.to_string();
 
-    if !eigendesk_plugin_runtime::valid_plugin_id(&plugin_id) {
+    if !wz_plugin_runtime::valid_plugin_id(&plugin_id) {
         return bad_request("invalid plugin id");
     }
     let Some(record) = kernel.plugins.get(&plugin_id) else {
@@ -122,11 +122,11 @@ fn serve_edp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
         }
     }
     let target = base.join(rel);
-    let canonical = match eigendesk_permissions::resolve(&target) {
+    let canonical = match wz_permissions::resolve(&target) {
         Ok(c) => c,
         Err(_) => return bad_request("invalid path"),
     };
-    let canonical_base = match eigendesk_permissions::resolve(&base) {
+    let canonical_base = match wz_permissions::resolve(&base) {
         Ok(c) => c,
         Err(_) => return not_found(),
     };
@@ -189,11 +189,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .register_uri_scheme_protocol(EDP_SCHEME, |ctx, request: Request<Vec<u8>>| {
+        .register_uri_scheme_protocol(WZP_SCHEME, |ctx, request: Request<Vec<u8>>| {
             let app = ctx.app_handle();
             let state = app.state::<KernelState>();
             let uri = request.uri().to_string();
-            serve_edp(&state.0, &uri)
+            serve_wzp(&state.0, &uri)
         })
         .invoke_handler(tauri::generate_handler![kernel_rpc, set_global_capture])
         .setup(move |app| {
@@ -239,11 +239,11 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running EigenDesk");
+        .expect("error while running Workbench Zero");
 }
 
 // ---------------------------------------------------------------------------
-// Tests: the edp:// protocol handler is security-critical (plugin sandbox
+// Tests: the wzp:// protocol handler is security-critical (plugin sandbox
 // boundary, ADR-0002) — path containment and CSP are tested directly.
 // ---------------------------------------------------------------------------
 #[cfg(test)]
@@ -251,13 +251,11 @@ mod tests {
     use super::*;
 
     fn test_kernel() -> Arc<Kernel> {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let base = std::env::temp_dir().join(format!(
-            "ed-edp-{}-{}",
+            "wz-tauri-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .elapsed()
-                .unwrap()
-                .subsec_nanos()
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         let bundled = base.join("resources/plugins");
         let pkg = bundled.join("test.demo");
@@ -288,7 +286,7 @@ mod tests {
     #[test]
     fn edp_serves_entry_with_strict_csp() {
         let kernel = test_kernel();
-        let resp = serve_edp(&kernel, "edp://test.demo/entry.html?surface=logic");
+        let resp = serve_wzp(&kernel, "wzp://test.demo/entry.html?surface=logic");
         assert_eq!(resp.status(), 200);
         assert_eq!(
             resp.headers().get("Content-Type").unwrap(),
@@ -309,7 +307,7 @@ mod tests {
     #[test]
     fn edp_serves_bundled_assets() {
         let kernel = test_kernel();
-        let resp = serve_edp(&kernel, "edp://test.demo/dist/main.js");
+        let resp = serve_wzp(&kernel, "wzp://test.demo/dist/main.js");
         assert_eq!(resp.status(), 200);
         assert_eq!(
             resp.headers().get("Content-Type").unwrap(),
@@ -322,11 +320,11 @@ mod tests {
         let kernel = test_kernel();
         // `..` must not escape the plugin package.
         for uri in [
-            "edp://test.demo/../secret.txt",
-            "edp://test.demo/dist/../../secret.txt",
-            "edp://test.demo/..%2Fsecret.txt",
+            "wzp://test.demo/../secret.txt",
+            "wzp://test.demo/dist/../../secret.txt",
+            "wzp://test.demo/..%2Fsecret.txt",
         ] {
-            let resp = serve_edp(&kernel, uri);
+            let resp = serve_wzp(&kernel, uri);
             assert!(
                 resp.status() == 400 || resp.status() == 404,
                 "traversal `{uri}` must be rejected, got {}",
@@ -338,21 +336,21 @@ mod tests {
     #[test]
     fn edp_unknown_plugin_is_404() {
         let kernel = test_kernel();
-        let resp = serve_edp(&kernel, "edp://other.plugin/entry.html");
+        let resp = serve_wzp(&kernel, "wzp://other.plugin/entry.html");
         assert_eq!(resp.status(), 404);
     }
 
     #[test]
     fn edp_invalid_plugin_id_is_400() {
         let kernel = test_kernel();
-        let resp = serve_edp(&kernel, "edp://../etc/entry.html");
+        let resp = serve_wzp(&kernel, "wzp://../etc/entry.html");
         assert_eq!(resp.status(), 400);
     }
 
     #[test]
     fn edp_empty_path_is_rejected() {
         let kernel = test_kernel();
-        let resp = serve_edp(&kernel, "edp://test.demo/");
+        let resp = serve_wzp(&kernel, "wzp://test.demo/");
         assert_eq!(resp.status(), 400);
     }
 }

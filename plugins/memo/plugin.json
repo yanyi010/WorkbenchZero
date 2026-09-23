@@ -1,15 +1,15 @@
 {
-  "id": "eigendesk.memo",
+  "id": "zero.memo",
   "name": "Memo",
   "version": "0.1.0",
   "apiVersion": "1",
   "description": "Fast local memo capture. Markdown memos live in your workspace.",
-  "publisher": "eigendesk",
+  "publisher": "zero",
   "trust": "trusted",
   "permissions": ["workspace:read", "workspace:write", "notification"],
   "activationEvents": [
-    "onCommand:eigendesk.memo.new",
-    "onView:eigendesk.memo.main",
+    "onCommand:zero.memo.new",
+    "onView:zero.memo.main",
     "onStartup",
     "onEvent:workspace.opened",
     "onEvent:artifact.open",
@@ -18,28 +18,28 @@
   "contributes": {
     "commands": [
       {
-        "id": "eigendesk.memo.new",
+        "id": "zero.memo.new",
         "title": "New Memo",
         "category": "Memo",
         "takesArgs": true,
         "keybinding": "Ctrl+Alt+M"
       },
-      { "id": "eigendesk.memo.open", "title": "Open Memo", "category": "Memo", "opensView": "eigendesk.memo.main" }
+      { "id": "zero.memo.open", "title": "Open Memo", "category": "Memo", "opensView": "zero.memo.main" }
     ],
-    "views": [{ "id": "eigendesk.memo.main", "title": "Memos", "icon": "📝", "location": "main" }],
-    "widgets": [{ "id": "eigendesk.memo.recent", "title": "Recent Memos", "minWidth": 220, "minHeight": 140 }],
+    "views": [{ "id": "zero.memo.main", "title": "Memos", "icon": "📝", "location": "main" }],
+    "widgets": [{ "id": "zero.memo.recent", "title": "Recent Memos", "minWidth": 220, "minHeight": 140 }],
     "settings": [
       {
-        "key": "eigendesk.memo.directory",
+        "key": "zero.memo.directory",
         "type": "string",
         "title": "Memos directory",
         "description": "Folder inside the workspace where memos are stored.",
         "default": "Memos"
       }
     ],
-    "searchProviders": [{ "id": "eigendesk.memo", "title": "Memos" }],
+    "searchProviders": [{ "id": "zero.memo", "title": "Memos" }],
     "captureProviders": [
-      { "id": "eigendesk.memo.default", "title": "Memo", "prefixes": [], "priority": 100, "command": "eigendesk.memo.new" }
+      { "id": "zero.memo.default", "title": "Memo", "prefixes": [], "priority": 100, "command": "zero.memo.new" }
     ],
     "artifactTypes": [{ "type": "memo", "title": "Memo" }]
   }

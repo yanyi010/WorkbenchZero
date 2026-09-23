@@ -20,12 +20,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@eigendesk/protocol': resolve(here, '../../packages/protocol/src/index.ts'),
-      '@eigendesk/plugin-sdk': resolve(here, '../../packages/plugin-sdk/src/index.ts'),
+      '@workbench-zero/protocol': resolve(here, '../../packages/protocol/src/index.ts'),
+      '@workbench-zero/plugin-sdk': resolve(here, '../../packages/plugin-sdk/src/index.ts'),
       // Order matters: the specific tokens.css alias must precede the
       // package alias (vite aliases are prefix matches).
-      '@eigendesk/ui-kit/tokens.css': resolve(here, '../../packages/ui-kit/src/tokens.css'),
-      '@eigendesk/ui-kit': resolve(here, '../../packages/ui-kit/src/index.tsx'),
+      '@workbench-zero/ui-kit/tokens.css': resolve(here, '../../packages/ui-kit/src/tokens.css'),
+      '@workbench-zero/ui-kit': resolve(here, '../../packages/ui-kit/src/index.tsx'),
       '@shell': resolve(here, 'src'),
     },
   },

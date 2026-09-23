@@ -11,7 +11,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ExtensionPack, PluginInfo, PluginManifest, RpcResponse } from '@eigendesk/protocol';
+import type { ExtensionPack, PluginInfo, PluginManifest, RpcResponse } from '@workbench-zero/protocol';
 
 // ---------------------------------------------------------------------------
 // fake kernel
@@ -43,7 +43,7 @@ function manifest(id: string, name: string, extra: Partial<PluginManifest> = {})
     name,
     version: '0.1.0',
     apiVersion: '1',
-    publisher: 'eigendesk',
+    publisher: 'zero',
     trust: 'trusted',
     permissions: [],
     activationEvents: ['onStartup'],
@@ -51,9 +51,9 @@ function manifest(id: string, name: string, extra: Partial<PluginManifest> = {})
       commands: [{ id: `${id}.new`, title: `New ${name}`, takesArgs: true }],
       views: [{ id: `${id}.main`, title: name }],
       captureProviders:
-        id === 'eigendesk.memo'
+        id === 'zero.memo'
           ? [{ id: `${id}.default`, title: name, prefixes: [], priority: 100, command: `${id}.new` }]
-          : id === 'eigendesk.tasks'
+          : id === 'zero.tasks'
             ? [{ id: `${id}.quick`, title: name, prefixes: ['/t'], priority: 90, command: `${id}.quickAdd` }]
             : [],
       ...extra.contributes,
@@ -79,13 +79,13 @@ function info(m: PluginManifest, st: PluginInfo['state']): PluginInfo {
 function resetKernel(): void {
   state.token = null;
   state.plugins = new Map([
-    ['eigendesk.memo', info(manifest('eigendesk.memo', 'Memo'), 'discovered')],
-    ['eigendesk.tasks', info(manifest('eigendesk.tasks', 'Tasks'), 'discovered')],
-    ['eigendesk.sticky', info(manifest('eigendesk.sticky', 'Sticky'), 'discovered')],
-    ['eigendesk.ai', info(manifest('eigendesk.ai', 'Quick Ask'), 'discovered')],
+    ['zero.memo', info(manifest('zero.memo', 'Memo'), 'discovered')],
+    ['zero.tasks', info(manifest('zero.tasks', 'Tasks'), 'discovered')],
+    ['zero.sticky', info(manifest('zero.sticky', 'Sticky'), 'discovered')],
+    ['zero.ai', info(manifest('zero.ai', 'Quick Ask'), 'discovered')],
   ]);
   state.packs = [
-    { id: 'essentials', name: 'Essentials', description: '', plugins: ['eigendesk.memo', 'eigendesk.tasks', 'eigendesk.sticky', 'eigendesk.ai'] },
+    { id: 'essentials', name: 'Essentials', description: '', plugins: ['zero.memo', 'zero.tasks', 'zero.sticky', 'zero.ai'] },
   ];
   state.workspaceCreated = false;
   state.settings = {};
@@ -146,7 +146,7 @@ mocks.invoke.mockImplementation(async (cmd: string, args: Record<string, unknown
           { id: 'core.quickCapture', title: 'Quick Capture', keywords: [], defaultKeybinding: 'Alt+Space', takesArgs: false },
           { id: 'core.universalSearch', title: 'Search', keywords: [], defaultKeybinding: 'Ctrl+P', takesArgs: false },
           { id: 'core.openSettings', title: 'Open Settings', keywords: [], takesArgs: false },
-          { id: 'eigendesk.memo.new', title: 'New Memo', keywords: [], pluginId: 'eigendesk.memo', takesArgs: true },
+          { id: 'zero.memo.new', title: 'New Memo', keywords: [], pluginId: 'zero.memo', takesArgs: true },
         ],
       };
     case 'plugins.registry':
@@ -183,7 +183,7 @@ mocks.invoke.mockImplementation(async (cmd: string, args: Record<string, unknown
         ok: true,
         result: {
           results: [
-            { uri: 'file:///memo-1.md', title: 'Berry convergence', score: 1, pluginId: 'eigendesk.memo', snippet: '…estimator…' },
+            { uri: 'file:///memo-1.md', title: 'Berry convergence', score: 1, pluginId: 'zero.memo', snippet: '…estimator…' },
           ],
           tookMs: 3,
         },
@@ -231,7 +231,7 @@ beforeEach(() => {
   document.body.appendChild(root);
   // logic-frame host expected by pluginHost
   const frames = document.createElement('div');
-  frames.id = 'edp-logic-frames';
+  frames.id = 'wz-logic-frames';
   document.body.appendChild(frames);
   useApp.setState(useApp.getInitialState());
   resetKernel();
@@ -251,7 +251,7 @@ describe('E2E: shell boot', () => {
     // First run: every bundled plugin still undiscovered.
     expect(useApp.getState().overlay).toBe('welcome');
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('Welcome to EigenDesk')).toBeTruthy();
+    expect(within(dialog).getByText('Welcome to Workbench Zero')).toBeTruthy();
     expect(within(dialog).getByPlaceholderText('e.g. Research')).toBeTruthy();
     // Trusted plugins with onStartup are not auto-enabled on first run.
     expect(useApp.getState().plugins.every((p) => p.state === 'discovered')).toBe(true);
@@ -280,7 +280,7 @@ describe('E2E: shell boot', () => {
     // Step 1: workspace (labels render above the inputs).
     const nameInput = await screen.findByPlaceholderText('e.g. Research');
     fireEvent.change(nameInput, { target: { value: 'E2E' } });
-    const rootInput = screen.getByPlaceholderText('e.g. ~/EigenDesk');
+    const rootInput = screen.getByPlaceholderText('e.g. ~/Workbench');
     fireEvent.change(rootInput, { target: { value: '/tmp/e2e-ws' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
@@ -321,8 +321,8 @@ describe('E2E: shell boot', () => {
     });
     useApp.setState({ overlay: null });
     // Enable memo so the capture router has a provider.
-    const rec = state.plugins.get('eigendesk.memo')!;
-    state.plugins.set('eigendesk.memo', { ...rec, state: 'enabled' });
+    const rec = state.plugins.get('zero.memo')!;
+    state.plugins.set('zero.memo', { ...rec, state: 'enabled' });
     await act(async () => {
       await useApp.getState().refreshPlugins();
     });
@@ -364,10 +364,10 @@ describe('E2E: shell boot', () => {
       await bootApp();
     });
     useApp.setState({ overlay: null });
-    state.plugins.get('eigendesk.memo')!.state = 'enabled';
-    window.__kernelInbox!([{ seq: 2, topic: 'plugin-state', data: { id: 'eigendesk.memo', state: 'enabled' } }]);
+    state.plugins.get('zero.memo')!.state = 'enabled';
+    window.__kernelInbox!([{ seq: 2, topic: 'plugin-state', data: { id: 'zero.memo', state: 'enabled' } }]);
     await waitFor(() => {
-      expect(useApp.getState().plugins.find((p) => p.manifest.id === 'eigendesk.memo')?.state).toBe('enabled');
+      expect(useApp.getState().plugins.find((p) => p.manifest.id === 'zero.memo')?.state).toBe('enabled');
     });
   });
 

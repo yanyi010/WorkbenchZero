@@ -1,4 +1,4 @@
-//! EigenDesk permission model.
+//! Workbench Zero permission model.
 //!
 //! Third-party plugins start with no privileged access. Every capability the
 //! kernel exposes (filesystem, network, process, notifications, ...) is gated

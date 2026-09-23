@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * wb — EigenDesk plugin developer CLI (spec §87).
+ * wb — Workbench Zero plugin developer CLI (spec §87).
  *
  *   wb plugin create <name>     scaffold a new plugin
  *   wb plugin build [dir]       bundle src/main.ts → dist/
  *   wb plugin dev [dir]         build into the app's dev-plugins dir, then
  *                               rebuild on change (kernel watcher hot-reloads)
- *   wb plugin pack [dir]        deterministic .edplugin.zip
+ *   wb plugin pack [dir]        deterministic .wzplugin.zip
  *   wb plugin validate [dir]    manifest + permission checks
  */
 import { build, context } from 'esbuild';
@@ -45,7 +45,7 @@ function fail(message) {
 
 function dataDir() {
   const base = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
-  return process.env.EIGENDESK_DATA_DIR || path.join(base, 'eigendesk');
+  return process.env.WORKBENCH_ZERO_DATA_DIR || path.join(base, 'workbench-zero');
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ async function create(name, opts) {
         name: className,
         version: '0.1.0',
         apiVersion: '1',
-        description: 'A new EigenDesk plugin.',
+        description: 'A new Workbench Zero plugin.',
         publisher,
         trust: 'sandboxed',
         permissions: [],
@@ -96,7 +96,7 @@ async function create(name, opts) {
   </body>
 </html>
 `,
-    'src/main.ts': `import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
+    'src/main.ts': `import { definePlugin, h, render } from '@workbench-zero/plugin-sdk';
 
 definePlugin({
   async activate(ctx) {
@@ -113,7 +113,7 @@ definePlugin({
 `,
     'README.md': `# ${className}
 
-An EigenDesk plugin.
+An Workbench Zero plugin.
 
 ## Develop
 
@@ -124,7 +124,7 @@ wb plugin dev .        # build + hot reload into the running app
 ## Package
 
 \`\`\`bash
-wb plugin pack .       # → ${id}-0.1.0.edplugin.zip
+wb plugin pack .       # → ${id}-0.1.0.wzplugin.zip
 \`\`\`
 `,
   };
@@ -165,11 +165,11 @@ async function bundle(dir, { dev }) {
     logLevel: 'warning',
     legalComments: 'none',
     alias: {
-      '@eigendesk/plugin-sdk': path.join(root, 'packages/plugin-sdk/src/index.ts'),
-      '@eigendesk/plugin-sdk/h': path.join(root, 'packages/plugin-sdk/src/h.ts'),
-      '@eigendesk/plugin-sdk/markdown': path.join(root, 'packages/plugin-sdk/src/markdown.ts'),
-      '@eigendesk/protocol': path.join(root, 'packages/protocol/src/index.ts'),
-      '@eigendesk/ui-kit': path.join(root, 'packages/ui-kit/src/index.tsx'),
+      '@workbench-zero/plugin-sdk': path.join(root, 'packages/plugin-sdk/src/index.ts'),
+      '@workbench-zero/plugin-sdk/h': path.join(root, 'packages/plugin-sdk/src/h.ts'),
+      '@workbench-zero/plugin-sdk/markdown': path.join(root, 'packages/plugin-sdk/src/markdown.ts'),
+      '@workbench-zero/protocol': path.join(root, 'packages/protocol/src/index.ts'),
+      '@workbench-zero/ui-kit': path.join(root, 'packages/ui-kit/src/index.tsx'),
     },
   };
   return { manifest, options };
@@ -221,7 +221,7 @@ async function devPlugin(dir) {
 }
 
 // ---------------------------------------------------------------------------
-// deterministic .edplugin packaging (stored zip, fixed timestamps)
+// deterministic .wzplugin packaging (stored zip, fixed timestamps)
 // ---------------------------------------------------------------------------
 
 const CRC_TABLE = (() => {
@@ -320,7 +320,7 @@ async function packPlugin(dir) {
   end.writeUInt16LE(0, 20);
 
   const zip = Buffer.concat([...chunks, centralBuf, end]);
-  const out = path.join(dir, `${manifest.id}-${manifest.version}.edplugin.zip`);
+  const out = path.join(dir, `${manifest.id}-${manifest.version}.wzplugin.zip`);
   await writeFile(out, zip);
   const sha256 = createHash('sha256').update(zip).digest('hex');
   console.log(`${out} (${files.length} files, ${zip.length} bytes)`);
@@ -398,7 +398,7 @@ async function main() {
   } else if (group === 'plugin' && command === 'validate') {
     await validatePlugin(path.resolve(opts._positional ?? rest[0] ?? '.'));
   } else {
-    console.log(`wb — EigenDesk plugin developer CLI
+    console.log(`wb — Workbench Zero plugin developer CLI
 
 Usage:
   wb plugin create <name> [--dir path] [--publisher id]

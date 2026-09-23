@@ -1,5 +1,5 @@
-import { Badge, Button, Dropdown, DropdownItem } from '@eigendesk/ui-kit';
-import { Methods } from '@eigendesk/protocol';
+import { Badge, Button, Dropdown, DropdownItem } from '@workbench-zero/ui-kit';
+import { Methods } from '@workbench-zero/protocol';
 import { useApp } from '../store';
 import { rpc } from '../kernel';
 
@@ -17,7 +17,7 @@ export function TitleBar() {
 
   return (
     <header className="ed-titlebar" role="banner">
-      <strong style={{ fontSize: 'var(--ed-text-md)', letterSpacing: 0.3 }}>EigenDesk</strong>
+      <strong style={{ fontSize: 'var(--ed-text-md)', letterSpacing: 0.3 }}>Workbench Zero</strong>
       <Dropdown label={current ? current.name : 'No workspace'}>
         {(close) => (
           <>

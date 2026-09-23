@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "EigenDesk",
+  "productName": "Workbench Zero",
   "version": "0.1.0",
-  "identifier": "org.eigendesk.desktop",
+  "identifier": "io.workbenchzero.desktop",
   "build": {
     "beforeDevCommand": "npm run dev:app",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "EigenDesk",
+        "title": "Workbench Zero",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
@@ -46,8 +46,9 @@
       "resources/**/*"
     ],
     "category": "Productivity",
-    "shortDescription": "Local-first extensible personal workstation",
-    "longDescription": "EigenDesk is a fast, local-first, extensible personal workstation for researchers, developers and power users. Almost all end-user functionality is a plugin; the kernel coordinates capabilities."
+    "shortDescription": "Your workbench. From zero.",
+    "longDescription": "Workbench Zero is a local-first personal workbench built entirely around plugins. AI included, if you want it. Everything lives in a folder you own: notes, tasks, stickies and files are plain workspace data, and every piece of end-user functionality is a permission-scoped plugin coordinated by a small, fast Rust kernel.",
+    "publisher": "Workbench Zero contributors"
   },
   "plugins": {
     "updater": {
@@ -55,5 +56,6 @@
       "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE4QjFEQjUzOUIxRUY5RDUKUldUVitSNmJVOXV4R0UvZjB6NmdzWGQrbGFFVTdFRlcyYnlvcTFENCtRYkE3ZHdVbVU5c1AvMDUK"
     }
-  }
+  },
+  "mainBinaryName": "workbench-zero"
 }
