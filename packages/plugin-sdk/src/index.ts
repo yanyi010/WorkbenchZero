@@ -182,10 +182,16 @@ interface NetStreamState {
   onError?: (message: string) => void;
   buffered: string[];
   done: boolean;
+  /** Terminal reason retained until the caller attaches handlers. */
+  errorMessage?: string;
+  aborted?: boolean;
 }
 
 const netStreams = new Map<string, NetStreamState>();
 const MAX_BUFFERED_CHUNKS = 2000;
+/** Orphan entries (stream ended before fetchStream's RPC resolved, and the
+ * caller never attached) are pages, not leaks — but cap them defensively. */
+const MAX_ORPHAN_STREAMS = 64;
 
 bridge.onPush((topic, data) => {
   if (topic !== 'net') return;
@@ -209,18 +215,33 @@ bridge.onPush((topic, data) => {
     }
     case 'net-end':
       state.done = true;
-      state.onEnd?.();
-      netStreams.delete(payload.streamId);
+      if (state.onEnd) {
+        state.onEnd();
+        netStreams.delete(payload.streamId);
+      }
       break;
     case 'net-error':
       state.done = true;
-      state.onError?.(payload.message ?? 'network error');
-      netStreams.delete(payload.streamId);
+      state.errorMessage = payload.message ?? 'network error';
+      if (state.onError) {
+        state.onError(state.errorMessage);
+        netStreams.delete(payload.streamId);
+      }
       break;
     case 'net-abort':
       state.done = true;
-      netStreams.delete(payload.streamId);
+      state.aborted = true;
+      if (state.onError) {
+        state.onError('aborted');
+        netStreams.delete(payload.streamId);
+      }
       break;
+  }
+  // Entries for streams whose RPC response never came (errored call) are
+  // unreachable; evict the oldest once we grow past the orphan cap.
+  if (netStreams.size > MAX_ORPHAN_STREAMS) {
+    const oldest = netStreams.keys().next().value;
+    if (oldest !== undefined) netStreams.delete(oldest);
   }
 });
 
@@ -562,8 +583,8 @@ function buildContext(): PluginContext {
         ),
       fetchStream: (url, init, handlers) => {
         // The `net` dispatcher (module scope) is already subscribed, so
-        // chunks arriving before the RPC response are buffered on the
-        // state entry created when they arrive.
+        // chunks — and even the terminal frame — that race ahead of the
+        // RPC response are retained on the state entry and replayed here.
         return bridge
           .call<{ streamId: string }>('network.fetchStream', { url, ...init })
           .then((res) => {
@@ -573,7 +594,14 @@ function buildContext(): PluginContext {
               state.onEnd = handlers.onEnd;
               state.onError = handlers.onError;
               for (const delta of state.buffered.splice(0)) handlers.onChunk(delta, '');
-              if (state.done) handlers.onEnd?.();
+              if (state.done) {
+                // The stream already terminated: deliver the terminal
+                // callback exactly once and retire the entry.
+                netStreams.delete(res.streamId);
+                if (state.errorMessage) handlers.onError?.(state.errorMessage);
+                else if (state.aborted) handlers.onError?.('aborted');
+                else handlers.onEnd?.();
+              }
             }
             return res;
           });

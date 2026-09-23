@@ -3,6 +3,7 @@ import { Dashboard } from './Dashboard';
 import { SettingsView } from './SettingsView';
 import { PluginStore } from './PluginStore';
 import { PluginViewHost } from './PluginViewHost';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export function TabArea() {
   const tabs = useApp((s) => s.tabs);
@@ -41,11 +42,25 @@ export function TabArea() {
         ))}
       </div>
       <div className="ed-view" role="tabpanel">
-        {active?.kind === 'dashboard' && <Dashboard />}
-        {active?.kind === 'settings' && <SettingsView />}
-        {active?.kind === 'store' && <PluginStore />}
+        {active?.kind === 'dashboard' && (
+          <ErrorBoundary label="Dashboard">
+            <Dashboard />
+          </ErrorBoundary>
+        )}
+        {active?.kind === 'settings' && (
+          <ErrorBoundary label="Settings">
+            <SettingsView />
+          </ErrorBoundary>
+        )}
+        {active?.kind === 'store' && (
+          <ErrorBoundary label="Plugin Store">
+            <PluginStore />
+          </ErrorBoundary>
+        )}
         {active?.kind === 'plugin-view' && active.pluginId && active.viewId && (
-          <PluginViewHost pluginId={active.pluginId} viewId={active.viewId} />
+          <ErrorBoundary label={`${active.pluginId} view`} key={active.id}>
+            <PluginViewHost pluginId={active.pluginId} viewId={active.viewId} />
+          </ErrorBoundary>
         )}
       </div>
     </main>

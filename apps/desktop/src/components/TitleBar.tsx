@@ -1,18 +1,15 @@
 import { Badge, Button, Dropdown, DropdownItem } from '@workbench-zero/ui-kit';
-import { Methods } from '@workbench-zero/protocol';
 import { useApp } from '../store';
-import { rpc } from '../kernel';
 
 export function TitleBar() {
   const current = useApp((s) => s.currentWorkspace);
   const workspaces = useApp((s) => s.workspaces);
   const openTab = useApp((s) => s.openTab);
-  const refreshWorkspaces = useApp((s) => s.refreshWorkspaces);
 
   const switchTo = async (id: string) => {
-    await rpc(Methods.workspace.open, { id });
-    await refreshWorkspaces();
-    useApp.getState().pushToast({ title: `Workspace: ${id}`, tone: 'info' });
+    await useApp.getState().openWorkspace(id);
+    const name = useApp.getState().currentWorkspace?.name ?? id;
+    useApp.getState().pushToast({ title: `Workspace: ${name}`, tone: 'info' });
   };
 
   return (
