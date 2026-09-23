@@ -11,9 +11,9 @@
     "dev:app": "vite"
   },
   "dependencies": {
-    "@workbench-zero/protocol": "0.1.0",
-    "@workbench-zero/plugin-sdk": "0.1.0",
-    "@workbench-zero/ui-kit": "0.1.0",
+    "@workbench-zero/protocol": "1.0.0",
+    "@workbench-zero/plugin-sdk": "1.0.0",
+    "@workbench-zero/ui-kit": "1.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.2",

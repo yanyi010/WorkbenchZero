@@ -14,7 +14,7 @@ durable enough to hold years of your data. AI included, if you want it.
 [![Release build](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml/badge.svg)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux-informational)
-![Rust](https://img.shields.io/badge/Rust-1.85%2B-dea584)
+![Rust](https://img.shields.io/badge/Rust-1.88%2B-dea584)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
 <img src="docs/assets/hero.png" width="860" alt="Workbench Zero shell: workspace with memos, tasks, a sticky card and a terminal" />
@@ -75,7 +75,7 @@ Three example plugins (`community.hello-plugin`, `community.pomodoro`,
 > Linux for now (WebKitGTK); the bundler config is architecture-clean and a
 > macOS/Windows matrix is planned.
 
-From source (Node 22+, Rust 1.85+, `libwebkit2gtk-4.1-dev`):
+From source (Node 22+, Rust 1.88+, `libwebkit2gtk-4.1-dev`):
 
 ```bash
 git clone https://github.com/yanyi010/WorkbenchZero.git
@@ -175,7 +175,7 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace                                 # Rust gates
 ```
 
-Every gate runs on every PR, plus MSRV (1.85), `cargo audit`, `npm audit`, a
+Every gate runs on every PR, plus MSRV (1.88), `cargo audit`, `npm audit`, a
 deterministic plugin-build check, and CLI smoke tests
 ([CI](.github/workflows/ci.yml)). See [CONTRIBUTING.md](CONTRIBUTING.md) for
 the full workflow.

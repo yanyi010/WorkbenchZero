@@ -10,7 +10,7 @@
     "./tokens.css": "./src/tokens.css"
   },
   "dependencies": {
-    "@workbench-zero/protocol": "0.1.0"
+    "@workbench-zero/protocol": "1.0.0"
   },
   "peerDependencies": {
     "react": "^18.0.0"

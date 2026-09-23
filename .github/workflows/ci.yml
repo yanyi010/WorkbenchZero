@@ -60,14 +60,14 @@ jobs:
       - run: cargo test --workspace
 
   rust-msrv:
-    name: Rust MSRV (1.85 check)
+    name: Rust MSRV (1.88 check)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: '1.85.0'
+          toolchain: '1.88.0'
       - name: Install system dependencies
         run: |
           sudo apt-get update
