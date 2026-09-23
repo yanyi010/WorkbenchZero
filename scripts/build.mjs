@@ -16,7 +16,7 @@
  * `--watch` recompiles on change for `wb dev`-style workflows.
  */
 import { build, context } from 'esbuild';
-import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -107,6 +107,13 @@ async function buildPlugin(dir, { dev }) {
 
 async function main() {
   const dev = process.argv.includes('--dev') || watch;
+  // Deterministic builds: wipe generated output first so stale plugin
+  // directories (e.g. after a rename) can never leak into the bundle.
+  if (!dev) {
+    await rm(path.join(resources, 'plugins'), { recursive: true, force: true });
+    await rm(path.join(resources, 'registry'), { recursive: true, force: true });
+    await rm(path.join(resources, 'packs.json'), { force: true });
+  }
   await mkdir(path.join(resources, 'plugins'), { recursive: true });
   await mkdir(path.join(resources, 'registry'), { recursive: true });
 

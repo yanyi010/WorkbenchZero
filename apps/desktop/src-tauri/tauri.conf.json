@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Workbench Zero",
+  "productName": "WorkbenchZero",
   "version": "0.1.0",
   "identifier": "io.workbenchzero.desktop",
   "build": {
@@ -54,7 +54,7 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE4QjFEQjUzOUIxRUY5RDUKUldUVitSNmJVOXV4R0UvZjB6NmdzWGQrbGFFVTdFRlcyYnlvcTFENCtRYkE3ZHdVbVU5c1AvMDUK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1MzZGODY3NEI4OUQ0NjIKUldSaTFJbExaL2cyeFJFa2ViWjl2akJ5VGc1NTRqbVlra1dZd01EWjdHMkVNbFRrcGlWeUNuQWIK"
     }
   },
   "mainBinaryName": "workbench-zero"

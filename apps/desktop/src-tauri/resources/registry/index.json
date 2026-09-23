@@ -1,1 +1,83 @@
-[]
+[
+  {
+    "id": "community.hello-plugin",
+    "name": "Hello Plugin",
+    "version": "0.1.0",
+    "publisher": "community",
+    "description": "The smallest useful plugin: one command, one view, one search provider.",
+    "packagePath": "plugins/community.hello-plugin",
+    "categories": []
+  },
+  {
+    "id": "community.pomodoro",
+    "name": "Pomodoro",
+    "version": "0.1.0",
+    "publisher": "community",
+    "description": "A 25-minute focus timer with desktop notifications.",
+    "packagePath": "plugins/community.pomodoro",
+    "categories": []
+  },
+  {
+    "id": "community.quickcalc",
+    "name": "QuickCalc",
+    "version": "0.1.0",
+    "publisher": "community",
+    "description": "Type = in Quick Capture to evaluate arithmetic. No permissions at all.",
+    "packagePath": "plugins/community.quickcalc",
+    "categories": []
+  },
+  {
+    "id": "zero.ai",
+    "name": "Quick Ask",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "AI assistant over any OpenAI-compatible endpoint (including local ones).",
+    "packagePath": "plugins/zero.ai",
+    "categories": []
+  },
+  {
+    "id": "zero.files",
+    "name": "Files",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "Workspace file tree with open, rename, move, delete and preview.",
+    "packagePath": "plugins/zero.files",
+    "categories": []
+  },
+  {
+    "id": "zero.memo",
+    "name": "Memo",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "Fast local memo capture. Markdown memos live in your workspace.",
+    "packagePath": "plugins/zero.memo",
+    "categories": []
+  },
+  {
+    "id": "zero.sticky",
+    "name": "Sticky",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "Small persistent cards with Markdown and checklists.",
+    "packagePath": "plugins/zero.sticky",
+    "categories": []
+  },
+  {
+    "id": "zero.tasks",
+    "name": "Tasks",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "Lightweight task list: title, status, due date, priority, tags, project, notes.",
+    "packagePath": "plugins/zero.tasks",
+    "categories": []
+  },
+  {
+    "id": "zero.terminal",
+    "name": "Terminal",
+    "version": "0.1.0",
+    "publisher": "zero",
+    "description": "Embedded terminal backed by the kernel PTY service.",
+    "packagePath": "plugins/zero.terminal",
+    "categories": []
+  }
+]
