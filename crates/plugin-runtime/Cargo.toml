@@ -1,0 +1,17 @@
+[package]
+name = "eigendesk-plugin-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+eigendesk-permissions = { workspace = true }
+eigendesk-settings = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+zip = { workspace = true }
+walkdir = { workspace = true }
+tracing = { workspace = true }

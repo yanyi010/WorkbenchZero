@@ -1,0 +1,29 @@
+# Build outputs
+node_modules/
+dist/
+target/
+apps/desktop/src-tauri/resources/
+apps/desktop/src-tauri/gen/schemas/
+*.edplugin
+*.local
+
+# Vite / vitest
+coverage/
+.vite/
+
+# EigenDesk runtime state (never commit workspaces or logs)
+.workbench/
+logs/
+*.log
+
+# Result artifacts from experiments / benchmarks
+results/
+result/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Updater private keys must never live in the repository
+*.key
+*.pem
