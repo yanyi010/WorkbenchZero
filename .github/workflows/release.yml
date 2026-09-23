@@ -103,8 +103,9 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$GITHUB_REF_NAME"
-          cd apps/desktop/src-tauri/target/release/bundle
-          find . -type f \( -name '*.deb' -o -name '*.AppImage' -o -name '*.tar.gz' -o -name '*.sig' -o -name '*.json' \) \
+          # Cargo's workspace-level target dir (repo root), not src-tauri's.
+          cd target/release/bundle
+          find . -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.tar.gz' -o -name '*.sig' -o -name '*.json' \) \
             | sort | xargs sha256sum > "$GITHUB_WORKSPACE/SHA256SUMS.txt"
           cd "$GITHUB_WORKSPACE"
           # The release exists (draft) at this point; attach the manifest.
