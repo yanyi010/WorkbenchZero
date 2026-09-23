@@ -46,6 +46,7 @@ pub fn validate_uri(uri: &str) -> Result<(), ArtifactError> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ArtifactRecord {
     pub uri: String,
     #[serde(rename = "type")]

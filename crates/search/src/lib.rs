@@ -22,6 +22,7 @@ pub enum SearchError {
 
 /// A document submitted to the generic indexing service (spec §70).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct IndexDocument {
     pub uri: String,
     pub title: String,
@@ -37,6 +38,7 @@ pub struct IndexDocument {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchHit {
     pub uri: String,
     pub title: String,

@@ -14,6 +14,7 @@ use serde_json::Value;
 use crate::KResult;
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AiTool {
     pub name: String,
     pub plugin_id: String,
@@ -76,6 +77,45 @@ impl AiToolRegistry {
         let mut tools: Vec<AiTool> = self.tools.read().unwrap().values().cloned().collect();
         tools.sort_by(|a, b| a.name.cmp(&b.name));
         tools
+    }
+
+    pub fn tool(&self, name: &str) -> Option<AiTool> {
+        self.tools.read().unwrap().get(name).cloned()
+    }
+}
+
+/// Pending AI tool invocations. The kernel routes a call to the owning
+/// plugin's logic iframe via a `plugin-push` and parks the RPC thread until
+/// the plugin answers with `ai.toolResult` (or the timeout fires).
+pub struct PendingToolCalls {
+    next_id: std::sync::atomic::AtomicU64,
+    pending: RwLock<HashMap<u64, (String, std::sync::mpsc::Sender<Value>)>>,
+}
+
+impl PendingToolCalls {
+    pub fn new() -> Self {
+        Self {
+            next_id: std::sync::atomic::AtomicU64::new(1),
+            pending: RwLock::new(HashMap::new()),
+        }
+    }
+
+    /// Park a tool call; returns the request id and the receiving end the
+    /// RPC thread will block on.
+    pub fn begin(&self, owner: &str) -> (u64, std::sync::mpsc::Receiver<Value>) {
+        let id = self.next_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.pending.write().unwrap().insert(id, (owner.to_string(), tx));
+        (id, rx)
+    }
+
+    /// Resolve a pending call; only the recorded owner may answer.
+    pub fn complete(&self, request_id: u64, owner: &str, result: Value) -> bool {
+        let entry = self.pending.write().unwrap().remove(&request_id);
+        match entry {
+            Some((expected_owner, tx)) if expected_owner == owner => tx.send(result).is_ok(),
+            _ => false,
+        }
     }
 }
 

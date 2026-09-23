@@ -15,6 +15,7 @@ pub enum RegistryError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CommandDef {
     pub id: String,
     pub title: String,

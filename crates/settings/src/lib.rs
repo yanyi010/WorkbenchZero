@@ -44,6 +44,7 @@ pub enum SettingType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SettingDescriptor {
     /// Dotted key: `pluginId.settingName` or `core.section.key`.
     pub key: String,

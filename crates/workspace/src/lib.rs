@@ -41,6 +41,7 @@ pub enum WorkspaceError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceRecord {
     pub id: String,
     pub name: String,

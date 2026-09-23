@@ -20,6 +20,7 @@ pub struct NotificationAction {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationRecord {
     pub id: String,
     pub title: String,

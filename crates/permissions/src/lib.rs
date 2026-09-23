@@ -49,6 +49,9 @@ pub const KNOWN_PERMISSIONS: &[&str] = &[
     "notification",
     "ai:invoke",
     "mcp:connect",
+    "secrets:read",
+    "clipboard:read",
+    "clipboard:write",
     "system:open",
 ];
 

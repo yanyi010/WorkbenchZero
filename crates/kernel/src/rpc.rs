@@ -758,6 +758,7 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         // -- secrets (owner-scoped) ------------------------------------------------------
         "secrets.set" => {
             let plugin_id = require_plugin(&caller)?;
+            check_flag(kernel, &caller, "secrets:read")?;
             let key = str_param(&params, "key")?;
             let value = str_param(&params, "value")?;
             kernel
@@ -768,6 +769,7 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "secrets.get" => {
             let plugin_id = require_plugin(&caller)?;
+            check_flag(kernel, &caller, "secrets:read")?;
             let key = str_param(&params, "key")?;
             let value = kernel
                 .secrets
@@ -777,6 +779,7 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "secrets.delete" => {
             let plugin_id = require_plugin(&caller)?;
+            check_flag(kernel, &caller, "secrets:read")?;
             let key = str_param(&params, "key")?;
             let removed = kernel
                 .secrets
@@ -786,6 +789,7 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "secrets.list" => {
             let plugin_id = require_plugin(&caller)?;
+            check_flag(kernel, &caller, "secrets:read")?;
             Ok(json!(kernel.secrets.list(&plugin_id)))
         }
         "secrets.status" => Ok(kernel.secrets.status()),
@@ -859,6 +863,57 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             Ok(Value::Null)
         }
         "ai.listTools" => Ok(json!(crate::AI_TOOLS.list())),
+        "ai.callTool" => {
+            let name = str_param(&params, "name")?;
+            let args = params.get("args").cloned().unwrap_or(serde_json::Value::Null);
+            let tool = crate::AI_TOOLS
+                .tool(&name)
+                .ok_or_else(|| KernelError::Message(format!("ai tool `{name}` is not registered")))?;
+            let owner = tool.plugin_id.clone();
+            let (request_id, rx) = crate::PENDING_TOOL_CALLS.begin(&owner);
+            kernel.push.push_to_plugin(
+                &owner,
+                "plugin-push",
+                json!({
+                    "kind": "ai-tool-call",
+                    "tool": name,
+                    "args": args,
+                    "requestId": request_id,
+                }),
+            );
+            match rx.recv_timeout(std::time::Duration::from_secs(60)) {
+                Ok(result) => {
+                    if result.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        Ok(result.get("result").cloned().unwrap_or(Value::Null))
+                    } else {
+                        Err(KernelError::Message(
+                            result.get("error").and_then(|v| v.as_str()).unwrap_or("tool failed").to_string(),
+                        ))
+                    }
+                }
+                Err(_) => Err(KernelError::Message(format!(
+                    "ai tool `{name}` did not answer within 60s"
+                ))),
+            }
+        }
+        "ai.toolResult" => {
+            let plugin_id = require_plugin(&caller)?;
+            let request_id = params["requestId"].as_u64().unwrap_or(0);
+            let ok = params["ok"].as_bool().unwrap_or(false);
+            let result = params.get("result").cloned().unwrap_or(Value::Null);
+            let error = params.get("error").and_then(|v| v.as_str()).unwrap_or("tool failed");
+            let payload = if ok {
+                json!({ "ok": true, "result": result })
+            } else {
+                json!({ "ok": false, "error": error })
+            };
+            if !crate::PENDING_TOOL_CALLS.complete(request_id, &plugin_id, payload) {
+                return Err(KernelError::Message(format!(
+                    "no pending ai tool call {request_id} for `{plugin_id}`"
+                )));
+            }
+            Ok(Value::Null)
+        }
 
         // -- mcp --------------------------------------------------------------------------
         "mcp.status" => {

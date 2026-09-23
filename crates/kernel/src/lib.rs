@@ -36,6 +36,9 @@ pub static AI_TOOLS: Lazy<ai_tools::AiToolRegistry> = Lazy::new(ai_tools::AiTool
 
 /// Per-plugin structured log ring buffers (surfaced in the plugin store UI).
 pub static PLUGIN_LOGS: Lazy<ai_tools::PluginLogs> = Lazy::new(ai_tools::PluginLogs::new);
+/// Pending AI tool invocations routed to owning plugins.
+pub static PENDING_TOOL_CALLS: Lazy<ai_tools::PendingToolCalls> =
+    Lazy::new(ai_tools::PendingToolCalls::new);
 
 /// Push messages flow kernel -> shell main frame in batches.
 #[derive(Debug, Clone, serde::Serialize)]
