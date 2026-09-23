@@ -82,9 +82,31 @@ export function Welcome() {
     >
       {step === 'workspace' ? (
         <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+            <svg width="52" height="52" viewBox="0 0 1024 1024" aria-hidden>
+              <defs>
+                <linearGradient id="wz-welcome-ring" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#38BDF8" />
+                  <stop offset="1" stopColor="#818CF8" />
+                </linearGradient>
+              </defs>
+              <rect width="1024" height="1024" rx="230" fill="#0B1120" />
+              <line x1="168" y1="712" x2="856" y2="712" stroke="#E2E8F0" strokeWidth="42" strokeLinecap="round" />
+              <circle cx="512" cy="452" r="234" fill="none" stroke="url(#wz-welcome-ring)" strokeWidth="98" />
+              <rect x="300" y="764" width="74" height="74" rx="18" fill="#38BDF8" />
+              <rect x="475" y="764" width="74" height="74" rx="18" fill="#818CF8" />
+              <rect x="650" y="764" width="74" height="74" rx="18" fill="#E2E8F0" />
+            </svg>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--ed-text-lg)' }}>Your workbench. From zero.</div>
+              <div style={{ color: 'var(--ed-muted)', fontSize: 'var(--ed-text-sm)' }}>
+                A local-first personal workbench built entirely around plugins.
+              </div>
+            </div>
+          </div>
           <p style={{ marginTop: 0, color: 'var(--ed-muted)' }}>
-            Workbench Zero is a local-first workbench: everything lives in a folder you own. Pick where
-            it should keep this workspace (memos, tasks, notes and indexes).
+            Everything lives in a folder you own: memos, tasks, notes and indexes. Pick where Workbench
+            Zero should keep this workspace.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ed-space-3)' }}>
             <label>

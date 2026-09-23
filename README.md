@@ -1,110 +1,164 @@
+<div align="center">
+
+<img src="docs/assets/logo.png" width="110" alt="Workbench Zero logo" />
+
 # Workbench Zero
 
-A local-first, extensible personal workbench. Rust kernel, TypeScript
-shell, sandboxed plugins — your memos, tasks, stickies, files, terminal
-and AI assistant in one desktop app that never phones home.
+**Your workbench. From zero.**
+
+A local-first personal workbench built entirely around plugins.\
+AI included, if you want it.
+
+[![CI](https://github.com/yanyi010/WorkbenchZero/actions/workflows/ci.yml/badge.svg)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/ci.yml)
+[![Release](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml/badge.svg)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Linux-informational)
+![Rust](https://img.shields.io/badge/Rust-1.85%2B-dea584)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+
+<img src="docs/assets/banner.png" width="820" alt="Workbench Zero banner" />
+
+[Quick start](#quick-start) · [First-party plugins](#first-party-plugins) · [Write a plugin](#write-a-plugin-in-30-seconds) · [Architecture](#architecture) · [Security model](#security-model) · [Docs](#documentation)
+
+</div>
+
+---
+
+Workbench Zero is a desktop workbench where **everything is a plugin** — notes,
+tasks, files, terminals, and (optionally) AI chat. A small, fast Rust kernel
+coordinates capabilities; plugins run sandboxed and permission-scoped; all of
+your data lives in a folder you own.
+
+- **Local-first.** Your workspace is a plain directory of Markdown and JSON. No
+  accounts, no cloud, no lock-in. Back it up with `rsync`, version it with
+  `git`, inspect it with `cat`.
+- **Everything is a plugin.** The shell ships almost no features. Memo, Tasks,
+  Files, Terminal — all plugins, all removable, all replaceable by yours.
+- **AI included, if you want it.** The `zero.ai` plugin talks to any
+  OpenAI-compatible endpoint you configure. No telemetry, no bundled API keys,
+  and the plugin is as optional as every other one.
+- **Deny-by-default permissions.** Plugins declare capabilities
+  (`workspace:read`, `process:spawn`, …); the kernel enforces the closed set.
+- **Sandboxed by construction.** Plugin UI runs in cross-origin `wzp://`
+  iframes with `connect-src 'none'` — no network, no DOM access to the shell.
+
+## First-party plugins
+
+| Plugin | What it does | Data it owns |
+| --- | --- | --- |
+| `zero.memo` | Markdown memos with front matter, wiki-style search | `Memos/*.md` |
+| `zero.tasks` | Task list with `!prio @project #tag ~due` quick syntax | `Tasks/tasks.json` |
+| `zero.sticky` | Desktop stickies, convertible to memos and tasks | `Stickies/*.md` |
+| `zero.files` | Workspace file tree with rename / move / delete | your files |
+| `zero.terminal` | Real terminals (xterm.js) in tabs | — |
+| `zero.ai` | Streaming chat, tool calls, save-as-memo | `AI/*.md` |
+
+Three example plugins (`community.hello-plugin`, `community.pomodoro`,
+`community.quickcalc`) double as templates and test fixtures.
+
+## Quick start
+
+> Pre-built `.deb` / `.AppImage` artifacts are attached to every
+> [release](https://github.com/yanyi010/WorkbenchZero/releases). Linux only
+> for now (WebKitGTK); macOS and Windows build paths are wired but untested.
+
+From source (Node 22+, Rust 1.85+, `libwebkit2gtk-4.1-dev`):
+
+```bash
+git clone https://github.com/yanyi010/WorkbenchZero.git
+cd WorkbenchZero
+npm install
+npm run build        # plugins → registry → vite
+npm run dev          # or: cargo tauri dev
+```
+
+First launch asks for a workspace folder and a starter pack — that's the whole
+onboarding. `Ctrl+K` opens the command palette, `Alt+Space` is quick capture,
+`Ctrl+P` searches the workspace.
+
+## Write a plugin in 30 seconds
+
+```bash
+npx wb create my-first-plugin   # scaffold
+npx wb dev my-first-plugin      # hot-reload into the running app
+npx wb pack my-first-plugin     # → my-first-plugin.wzplugin.zip
+```
+
+A plugin is four files: `plugin.json` (manifest + permissions), `entry.html`,
+`style.css`, and `src/main.ts`:
+
+```ts
+import { definePlugin } from '@workbench-zero/plugin-sdk'
+
+export default definePlugin({
+  commands: [{
+    id: 'hello',
+    title: 'Say hello',
+    handler: ctx => ctx.ui.notify('Hello from my first plugin!'),
+  }],
+})
+```
+
+Full API — UI surfaces, settings, workspace files, events, AI tools — is
+documented in [`docs/plugin-api`](docs/plugin-api/README.md). Contribution
+points, permissions and packaging are covered in
+[`docs/contribution-points`](docs/contribution-points/README.md) and
+[`docs/permissions`](docs/permissions/README.md).
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  TitleBar          ⌘K palette  Alt+Space capture        │
-├────┬────────────────────────────────────────┬───────────┤
-│ A  │  Dashboard / Memos / Tasks / Terminal  │  Status   │
-│ c  │  (tabs, plugin views in wzp:// frames) │  Bar      │
-│ t  │                                        │           │
-└────┴────────────────────────────────────────┴───────────┘
-        ▲ plugin iframes (sandboxed, permission-gated)
-        ▲ single kernel_rpc IPC (token-guarded)
-┌─────────────────────────────────────────────────────────┐
-│  Rust kernel: workspace · permissions · plugins · FTS   │
-│  artifacts · events · PTY · net · MCP · secrets · AI    │
+┌────────────────────────────────────────────────────────┐
+│ Workbench Zero shell (TypeScript / React, Tauri webview)│
+│   palette · quick capture · search · settings · welcome │
+└──────────────▲─────────────────────────▲───────────────┘
+       kernel_rpc(token, payload)   window.__kernelInbox(batch)
+┌──────────────┴─────────────────────────┴───────────────┐
+│ wz-kernel (Rust): settings · workspaces · commands ·    │
+│ events · search · artifacts · secrets · plugin runtime  │
+└──────────────▲─────────────────────────▲───────────────┘
+   single JSON-RPC-ish dispatcher   batched push (seq)
+┌──────────────┴─────────────────────────┴───────────────┐
+│ plugin iframes (wzp://<id>/…, cross-origin sandbox)    │
+│   zero.memo · zero.tasks · zero.files · zero.terminal … │
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Highlights
+One command (`kernel_rpc`), a first-caller token, an audited TypeScript
+protocol mirror, and a batched inbox — the whole wire surface. Decisions are
+recorded in [ADRs](docs/adr/); start with
+[ADR-0001](docs/adr/ADR-0001-rust-kernel-workspace.md).
 
-- **Local-first** — product data is plain Markdown/JSON inside a
-  workspace folder you own (ADR-0006). Backup = `cp -r`.
-- **Real plugin sandbox** — plugins run on synthetic `wzp://` origins
-  with `sandbox="allow-scripts"`; every capability call is stamped and
-  permission-checked in the trusted frame (ADR-0002/0004).
-- **Closed permission set** with per-install approval and
-  drift-reapproval on updates (ADR-0005).
-- **Quick Capture** (`Alt+Space`) — prefix-routed (`/t` task, `/s`
-  sticky, `?` ask, `=` calc); core never depends on a specific plugin.
-- **Command palette** (`Ctrl+K`), universal search (`Ctrl+P`) over a
-  cross-plugin FTS index.
-- **First-party plugins**: Memo, Tasks, Sticky, Files, Terminal (PTY),
-  Quick Ask (any OpenAI-compatible endpoint, keys in the OS keychain).
-- **Developer CLI** `wb` — scaffold, build, hot-reload into the running
-  app, deterministic `.wzplugin.zip` packaging.
+## Security model
 
-## Repository layout
+- Plugins are cross-origin iframes served from `wzp://` with a strict CSP
+  (`connect-src 'none'`); the shell is unreachable from plugin DOM.
+- Permissions are a closed, versioned set, deny-by-default, granted at install
+  time (see [docs/permissions](docs/permissions/README.md)).
+- Secrets live in the OS keychain (with an encrypted-at-rest file fallback).
+- Paths are contained: no `..`, no absolute escapes, no symlink tricks —
+  enforced in Rust, covered by tests.
 
-```
-apps/desktop/          Tauri 2 shell (Rust transport + React UI)
-crates/                Rust kernel workspace (see ADR-0001)
-packages/protocol/     TypeScript wire types + Methods (drift-tested)
-packages/plugin-sdk/   Plugin API: definePlugin, bridge, h(), markdown
-packages/ui-kit/       Design tokens + shared React components
-packages/devtools/     wb CLI
-plugins/               First-party plugins (memo, tasks, sticky, files,
-                       terminal, ai)
-examples/              hello-plugin, pomodoro, quickcalc
-scripts/build.mjs      Plugin bundling + registry/packs generation
-tests/e2e/             Full-shell E2E against a fake kernel
-docs/                  ADRs, architecture, plugin API docs
-```
-
-## Quick start (development)
-
-Requirements: Node ≥ 20, Rust stable, and on Linux
-`webkit2gtk4.1-devel` (+ `libappindicator`/`librsvg` as your distro
-requires for Tauri 2).
+## Development
 
 ```bash
-npm install
-
-# everything: plugin bundles → registry/packs → vite build
-npm run build
-
-# run the app in dev mode (vite + tauri)
-npm run dev
-
-# strict gates (all must be green before merge)
-npm run typecheck       # tsc across packages, plugins, examples, tests
-npm run lint            # eslint (type-checked rules), 0 errors
-npm test                # 59 vitest tests incl. E2E shell boot
-cargo fmt --all --check
-cargo clippy --workspace --all-targets   # zero warnings
-cargo test --workspace  # 58 Rust tests
+npm run typecheck && npx eslint . && npx vitest run   # TS gates
+cargo fmt --all --check && cargo clippy --workspace --all-targets
+cargo test --workspace                                 # Rust gates
 ```
 
-### Writing a plugin
+All gates run on every PR ([CI](.github/workflows/ci.yml)). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, and
+[docs/architecture](docs/architecture/README.md) for the guided tour.
 
-```bash
-npm run wb -- plugin create my-plugin
-cd my-plugin
-npm run wb -- plugin dev .     # hot-reloads into the running app
-npm run wb -- plugin pack .    # → my-plugin-0.1.0.wzplugin.zip
-```
+## Documentation
 
-A minimal plugin is one command in under 100 lines (see
-`examples/hello-plugin`). See `docs/plugin-api` and
-`docs/contribution-points`.
-
-## Security model (short version)
-
-1. One privileged IPC (`kernel_rpc`), claimed by the main frame at
-   startup via a bootstrap token (ADR-0003).
-2. Plugin frames cannot call it — they `postMessage` the trusted frame,
-   which stamps their identity (ADR-0004).
-3. The kernel enforces the closed permission set on every call;
-   filesystem paths are canonicalized before scope checks (ADR-0005).
-4. Secrets live in the OS keychain; headless fallback is `0600`-file
-   with a surfaced warning, never plain config (ADR-0007).
-
-Full reasoning: `docs/adr/`.
+- [Architecture guide](docs/architecture/README.md)
+- [Plugin API reference](docs/plugin-api/README.md)
+- [Contribution points](docs/contribution-points/README.md)
+- [Permission model](docs/permissions/README.md)
+- [ADRs 0001–0008](docs/adr/) — every structural decision, with context
 
 ## License
 
-TBD — all rights reserved for now.
+[MIT](LICENSE) © Workbench Zero contributors

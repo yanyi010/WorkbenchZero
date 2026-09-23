@@ -64,7 +64,7 @@ jobs:
           z = zipfile.ZipFile(zips[0])
           assert 'plugin.json' in z.namelist(), 'plugin.json missing from archive'
           assert z.testzip() is None, 'crc failure'
-          print('edplugin zip ok:', zips[0])
+          print('wzplugin zip ok:', zips[0])
           EOF
 
   plugins:

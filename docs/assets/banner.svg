@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1280" role="img" aria-label="Workbench Zero — Your workbench. From zero.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1120"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#818CF8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#818CF8"/>
+    </linearGradient>
+  </defs>
+  <rect width="2560" height="1280" fill="url(#bg)"/>
+
+  <!-- faint grid: the plugin matrix -->
+  <g stroke="#334155" stroke-width="2" opacity="0.35">
+    <line x1="1600" y1="120" x2="1600" y2="1160"/>
+    <line x1="1980" y1="120" x2="1980" y2="1160"/>
+    <line x1="2360" y1="120" x2="2360" y2="1160"/>
+    <line x1="1480" y1="320" x2="2480" y2="320"/>
+    <line x1="1480" y1="640" x2="2480" y2="640"/>
+    <line x1="1480" y1="960" x2="2480" y2="960"/>
+  </g>
+
+  <!-- brand lockup -->
+  <g transform="translate(200,0)">
+    <circle cx="170" cy="330" r="86" fill="none" stroke="url(#ring)" stroke-width="38"/>
+    <line x1="10" y1="520" x2="330" y2="520" stroke="#E2E8F0" stroke-width="18" stroke-linecap="round"/>
+    <rect x="38" y="548" width="34" height="34" rx="8" fill="#38BDF8"/>
+    <rect x="146" y="548" width="34" height="34" rx="8" fill="#818CF8"/>
+    <rect x="254" y="548" width="34" height="34" rx="8" fill="#E2E8F0"/>
+  </g>
+  <text x="620" y="370" font-family="DejaVu Sans, Inter, system-ui, sans-serif" font-size="150" font-weight="700" fill="#F8FAFC" letter-spacing="4">Workbench Zero</text>
+  <text x="624" y="470" font-family="DejaVu Sans, Inter, system-ui, sans-serif" font-size="66" fill="#94A3B8" letter-spacing="2">Your workbench. From zero.</text>
+  <rect x="624" y="560" width="180" height="10" rx="5" fill="url(#accent)"/>
+  <text x="624" y="660" font-family="DejaVu Sans, Inter, system-ui, sans-serif" font-size="44" fill="#CBD5E1">A local-first personal workbench built entirely around plugins.</text>
+  <text x="624" y="724" font-family="DejaVu Sans, Inter, system-ui, sans-serif" font-size="44" fill="#CBD5E1">AI included, if you want it.</text>
+
+  <!-- plugin chips on the grid -->
+  <g font-family="DejaVu Sans Mono, monospace" font-size="42">
+    <rect x="1650" y="380" width="280" height="96" rx="20" fill="#1E293B" stroke="#38BDF8" stroke-width="4"/>
+    <text x="1690" y="442" fill="#7DD3FC">zero.memo</text>
+    <rect x="2030" y="380" width="280" height="96" rx="20" fill="#1E293B" stroke="#818CF8" stroke-width="4"/>
+    <text x="2070" y="442" fill="#A5B4FC">zero.tasks</text>
+    <rect x="1650" y="700" width="280" height="96" rx="20" fill="#1E293B" stroke="#E2E8F0" stroke-width="4"/>
+    <text x="1690" y="762" fill="#E2E8F0">zero.files</text>
+    <rect x="2030" y="700" width="280" height="96" rx="20" fill="#1E293B" stroke="#38BDF8" stroke-width="4"/>
+    <text x="2070" y="762" fill="#7DD3FC">zero.ai</text>
+    <rect x="1650" y="1020" width="280" height="96" rx="20" fill="#1E293B" stroke="#475569" stroke-width="4"/>
+    <text x="1690" y="1082" fill="#94A3B8">your.plugin</text>
+  </g>
+</svg>
