@@ -79,6 +79,10 @@ jobs:
     name: cargo audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      # rustsec/audit-check posts its findings as a check run.
+      checks: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v2
