@@ -2,11 +2,22 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      // `emptyOutDir` wipes dist/ — including the tracked .gitkeep the
+      // tauri context macro needs on fresh clones. Re-create it.
+      name: 'keep-dist-placeholder',
+      closeBundle() {
+        writeFileSync(resolve(here, 'dist/.gitkeep'), '');
+      },
+    },
+  ],
   clearScreen: false,
   server: {
     port: 1420,
