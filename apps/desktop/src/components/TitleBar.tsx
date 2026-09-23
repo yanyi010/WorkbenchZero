@@ -3,6 +3,7 @@ import { useApp } from '../store';
 
 export function TitleBar() {
   const current = useApp((s) => s.currentWorkspace);
+  const version = useApp((s) => s.info?.version);
   const workspaces = useApp((s) => s.workspaces);
   const openTab = useApp((s) => s.openTab);
 
@@ -42,7 +43,7 @@ export function TitleBar() {
         )}
       </Dropdown>
       <div style={{ flex: 1 }} />
-      <Badge tone="accent">v0.1</Badge>
+      <Badge tone="accent">{version ? `v${version}` : ''}</Badge>
       <Button
         variant="ghost"
         small
