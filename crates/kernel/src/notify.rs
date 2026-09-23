@@ -43,8 +43,8 @@ pub fn push_notification(
     source: Option<String>,
     actions: Vec<Value>,
 ) {
-    let title = &title[..title.floor_char_boundary(2000)];
-    let body = &body[..body.floor_char_boundary(8000)];
+    let title = wz_common::truncate_chars(title, 2000);
+    let body = wz_common::truncate_chars(body, 8000);
     let actions: Vec<NotificationAction> = actions
         .iter()
         .filter_map(|a| {

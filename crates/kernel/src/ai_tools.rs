@@ -190,7 +190,7 @@ impl PluginLogs {
         // Log messages are capped: a misbehaving plugin must not be able to
         // flood the ring buffer with megabyte-sized lines.
         let message = if message.len() > 4096 {
-            &message[..message.floor_char_boundary(4096)]
+            wz_common::truncate_chars(&message, 4096)
         } else {
             message
         };

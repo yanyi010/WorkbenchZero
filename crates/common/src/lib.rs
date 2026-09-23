@@ -226,6 +226,20 @@ impl<T> RwLockRecover<T> for RwLock<T> {
     }
 }
 
+/// Truncate to at most `max` **bytes** on a char boundary — stable-Rust
+/// replacement for `str::floor_char_boundary` (stabilized 1.91) so the
+/// workspace can hold a 1.85 MSRV.
+pub fn truncate_chars(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        return s;
+    }
+    let mut end = max.min(s.len());
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,6 +254,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn truncate_chars_never_splits_utf8() {
+        let s = "héllo—世界!";
+        assert_eq!(truncate_chars(s, 1000), s);
+        for max in 0..=s.len() {
+            let t = truncate_chars(s, max);
+            assert!(t.len() <= max);
+            assert!(s.is_char_boundary(t.len()));
+            assert!(s.starts_with(t));
+        }
     }
 
     #[test]

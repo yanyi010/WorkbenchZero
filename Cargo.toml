@@ -20,6 +20,7 @@ members = [
 [workspace.package]
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.85"
 license = "MIT"
 authors = ["Workbench Zero contributors"]
 
