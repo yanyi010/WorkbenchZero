@@ -57,7 +57,11 @@ function parse(raw: string, uri: string): StickyCard {
       const key = line.slice(0, idx).trim();
       const value = line.slice(idx + 1).trim();
       if (key === 'title') card.title = value.replace(/^["']|["']$/g, '');
-      if (key === 'color' && /^#[0-9a-f]{6}$/i.test(value)) card.color = value;
+      // serialize() JSON-quotes the value; unquote before validating.
+      if (key === 'color') {
+        const unquoted = value.replace(/^["']|["']$/g, '');
+        if (/^#[0-9a-f]{6}$/i.test(unquoted)) card.color = unquoted;
+      }
       if (key === 'updatedAt') card.updatedAt = value;
     }
   }

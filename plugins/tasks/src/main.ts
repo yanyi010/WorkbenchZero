@@ -56,12 +56,37 @@ async function load(): Promise<void> {
     tasks = [];
     return;
   }
+  const path = tasksPath(ws.root);
+  // A *corrupt* tasks file (unparseable, or valid-but-wrong JSON) must
+  // never be silently reset → overwritten by the next persist. Quarantine
+  // it (copy aside, remove the unreadable original) and tell the user
+  // where their data went.
+  let corrupt = false;
   try {
-    const file = await ctx.fs.readFile(tasksPath(ws.root));
+    const file = await ctx.fs.readFile(path);
     const parsed = JSON.parse(file.content) as Task[];
-    tasks = Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      tasks = parsed;
+      return;
+    }
+    corrupt = true;
   } catch {
-    tasks = []; // no tasks file yet — fine
+    corrupt = true;
+  }
+  tasks = [];
+  const exists = await ctx.fs.stat(path).catch(() => null);
+  if (corrupt && exists?.isFile) {
+    const quarantine = `${path}.corrupt-${Date.now()}`;
+    try {
+      await ctx.fs.copy(path, quarantine);
+      await ctx.fs.delete(path);
+      await ctx.notify.show({
+        title: 'Tasks file was unreadable',
+        body: `A safety copy was saved to ${quarantine}. Starting with an empty list.`,
+      });
+    } catch {
+      /* best effort — the original is still on disk */
+    }
   }
 }
 
