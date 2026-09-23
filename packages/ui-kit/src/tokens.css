@@ -1,0 +1,93 @@
+/**
+ * EigenDesk design tokens (spec §76). Core owns the tokens; plugins and the
+ * shell must consume these variables instead of hard-coded colors.
+ *
+ * Light theme is the default; `[data-theme="dark"]` flips the palette. A
+ * `prefers-color-scheme` block is intentionally NOT used so the in-app
+ * setting always wins over the OS.
+ */
+
+:root {
+  /* palette — light */
+  --ed-background: #f7f7f8;
+  --ed-background-alt: #ffffff;
+  --ed-background-sink: #ececee;
+  --ed-foreground: #1c1d21;
+  --ed-muted: #6b6e76;
+  --ed-border: #d8d9de;
+  --ed-border-strong: #b9bbc3;
+  --ed-accent: #2f6fed;
+  --ed-accent-foreground: #ffffff;
+  --ed-accent-soft: rgba(47, 111, 237, 0.12);
+  --ed-danger: #c92f34;
+  --ed-danger-soft: rgba(201, 47, 52, 0.1);
+  --ed-warning: #9a6700;
+  --ed-warning-soft: rgba(154, 103, 0, 0.12);
+  --ed-success: #1a7f37;
+  --ed-success-soft: rgba(26, 127, 55, 0.12);
+
+  /* typography */
+  --ed-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
+    'Helvetica Neue', sans-serif;
+  --ed-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --ed-text-xs: 11px;
+  --ed-text-sm: 12px;
+  --ed-text-md: 13px;
+  --ed-text-lg: 15px;
+  --ed-text-xl: 20px;
+
+  /* spacing & shape */
+  --ed-radius-sm: 4px;
+  --ed-radius-md: 6px;
+  --ed-radius-lg: 10px;
+  --ed-space-1: 4px;
+  --ed-space-2: 8px;
+  --ed-space-3: 12px;
+  --ed-space-4: 16px;
+  --ed-space-5: 24px;
+
+  /* depth */
+  --ed-shadow-1: 0 1px 2px rgba(20, 22, 26, 0.08);
+  --ed-shadow-2: 0 4px 16px rgba(20, 22, 26, 0.14);
+  --ed-shadow-overlay: 0 12px 40px rgba(20, 22, 26, 0.22);
+
+  /* motion */
+  --ed-fast: 90ms;
+  --ed-slow: 200ms;
+
+  /* layout metrics */
+  --ed-titlebar-h: 36px;
+  --ed-activitybar-w: 44px;
+  --ed-statusbar-h: 24px;
+  --ed-focus-ring: 0 0 0 2px var(--ed-accent);
+}
+
+[data-theme='dark'] {
+  --ed-background: #1b1c20;
+  --ed-background-alt: #24262b;
+  --ed-background-sink: #141519;
+  --ed-foreground: #e6e7ea;
+  --ed-muted: #94969e;
+  --ed-border: #383b42;
+  --ed-border-strong: #4b4f58;
+  --ed-accent: #5b8cff;
+  --ed-accent-foreground: #0d1117;
+  --ed-accent-soft: rgba(91, 140, 255, 0.16);
+  --ed-danger: #f0625f;
+  --ed-danger-soft: rgba(240, 98, 95, 0.14);
+  --ed-warning: #d9a23c;
+  --ed-warning-soft: rgba(217, 162, 60, 0.14);
+  --ed-success: #4ac26b;
+  --ed-success-soft: rgba(74, 194, 107, 0.14);
+  --ed-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ed-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --ed-shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* keyboard focus must stay visible (spec §78) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ed-focus-ring);
+  border-radius: var(--ed-radius-sm);
+}

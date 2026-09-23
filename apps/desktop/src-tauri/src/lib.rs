@@ -185,18 +185,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        if let Some(webview) = app.get_webview_window("main") {
-                            let script = r#"window.__kernelInbox&&window.__kernelInbox([{topic:"shortcut",payload:{id:"quick-capture"}}]);"#;
-                            let _ = webview.eval(script);
-                        }
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .register_uri_scheme_protocol(EDP_SCHEME, |ctx, request: Request<Vec<u8>>| {
             let app = ctx.app_handle();
             let state = app.state::<KernelState>();

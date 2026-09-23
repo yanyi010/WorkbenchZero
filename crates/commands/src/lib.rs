@@ -38,6 +38,10 @@ pub struct CommandDef {
     /// Hidden commands do not show in the palette but remain invocable.
     #[serde(default)]
     pub hidden: bool,
+    /// Declarative behavior: opening the named view of the owning plugin.
+    /// The shell resolves this without loading the plugin iframe.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opens_view: Option<String>,
 }
 
 #[derive(Default)]
@@ -107,6 +111,7 @@ mod tests {
             default_keybinding: None,
             takes_args: false,
             hidden: false,
+            opens_view: None,
         }
     }
 

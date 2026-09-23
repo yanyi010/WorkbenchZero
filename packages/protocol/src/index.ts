@@ -38,6 +38,8 @@ export interface CommandContribution {
   /** Accepts free-text input (e.g. `memo.new <text>`). */
   takesArgs?: boolean;
   hidden?: boolean;
+  /** Declarative behavior: open the named view of the owning plugin. */
+  opensView?: string;
 }
 
 export type ViewLocation = 'main' | 'sidebar' | 'bottom' | 'floating';
@@ -81,6 +83,8 @@ export interface CaptureProviderContribution {
   prefixes: string[];
   /** Lower = weaker claim. Default providers use high numbers. */
   priority?: number;
+  /** Command invoked with the captured text when this provider wins. */
+  command?: string;
 }
 
 export interface ArtifactTypeContribution {
@@ -343,6 +347,8 @@ export interface CommandDef {
   defaultKeybinding?: string | null;
   takesArgs: boolean;
   hidden?: boolean;
+  /** Declarative behavior: open the named view of the owning plugin. */
+  opensView?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -659,7 +665,8 @@ export class KernelRpcError extends Error {
 export type PluginBridgeMessage =
   | { type: 'edp-rpc'; id: number; method: string; params: Record<string, unknown> }
   | { type: 'edp-ready' }
-  | { type: 'edp-manifest-request' };
+  | { type: 'edp-manifest-request' }
+  | { type: 'edp-command-result'; requestId: number; ok: boolean; result?: unknown; error?: string };
 
 /** Main frame → plugin iframe. */
 export type HostBridgeMessage =
@@ -667,7 +674,16 @@ export type HostBridgeMessage =
   | { type: 'edp-rpc-result'; id: number; ok: true; result: unknown }
   | { type: 'edp-rpc-result'; id: number; ok: false; error: { code: string; message: string } }
   | { type: 'edp-push'; topic: PushTopic; data: unknown }
-  | { type: 'edp-manifest'; manifest: PluginManifest };
+  | { type: 'edp-manifest'; manifest: PluginManifest }
+    | { type: 'edp-command'; requestId: number; id: string; args?: string };
+
+/** Extracted command invocation message (host → plugin iframe). */
+export interface HostBridgeCommand {
+  type: 'edp-command';
+  requestId: number;
+  id: string;
+  args?: string;
+}
 
 /** Kernel → plugin push payload for network streams (topic `net`). */
 export interface NetPush {

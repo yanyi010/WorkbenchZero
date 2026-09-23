@@ -15,6 +15,7 @@ pub fn register_core_commands(registry: &CommandRegistry) {
         default_keybinding: keybinding.map(|s| s.to_string()),
         takes_args: false,
         hidden: false,
+        opens_view: None,
     };
     let commands = vec![
         core("core.showPalette", "Show Command Palette", "View", Some("Ctrl+K")),
@@ -52,6 +53,7 @@ pub fn register_core_commands(registry: &CommandRegistry) {
         default_keybinding: None,
         takes_args: true,
         hidden: true,
+        opens_view: None,
     }];
     for def in commands.into_iter().chain(with_args) {
         if let Err(e) = registry.register(def) {

@@ -20,7 +20,11 @@
     "wb": "node packages/devtools/bin/wb.mjs"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^26.6.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -35,5 +39,9 @@
     "vite": "^6.0.5",
     "vitest": "^2.1.8",
     "zustand": "^5.0.2"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

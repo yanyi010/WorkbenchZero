@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true,
+    "paths": {
+      "@eigendesk/protocol": ["../../packages/protocol/src/index.ts"],
+      "@eigendesk/plugin-sdk": ["../../packages/plugin-sdk/src/index.ts"],
+      "@eigendesk/ui-kit": ["../../packages/ui-kit/src/index.tsx"],
+      "@shell/*": ["src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

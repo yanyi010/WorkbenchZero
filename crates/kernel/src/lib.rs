@@ -417,6 +417,7 @@ impl Kernel {
                     default_keybinding: cmd.keybinding.clone(),
                     takes_args: cmd.takes_args,
                     hidden: cmd.hidden,
+                    opens_view: cmd.opens_view.clone(),
                 });
             }
         }

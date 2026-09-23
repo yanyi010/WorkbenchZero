@@ -8,7 +8,7 @@
       "@eigendesk/protocol": ["packages/protocol/src/index.ts"],
       "@eigendesk/plugin-sdk": ["packages/plugin-sdk/src/index.ts"],
       "@eigendesk/plugin-sdk/h": ["packages/plugin-sdk/src/h.ts"],
-      "@eigendesk/ui-kit": ["packages/ui-kit/src/index.ts"]
+      "@eigendesk/ui-kit": ["packages/ui-kit/src/index.tsx"]
     }
   },
   "include": [

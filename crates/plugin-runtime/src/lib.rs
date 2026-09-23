@@ -122,6 +122,9 @@ pub struct CommandContribution {
     pub takes_args: bool,
     #[serde(default)]
     pub hidden: bool,
+    /// Declarative behavior: opening the named view of the owning plugin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opens_view: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -202,6 +205,9 @@ pub struct CaptureProviderContribution {
     /// Lower = weaker claim. Default providers use high numbers.
     #[serde(default = "priority_default")]
     pub priority: i32,
+    /// Command invoked with the captured text when this provider wins.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
 }
 
 fn priority_default() -> i32 {

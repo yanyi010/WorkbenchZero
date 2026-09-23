@@ -11,6 +11,7 @@
 
 import type {
   AiToolCallPush,
+  HostBridgeCommand,
   ArtifactRecord,
   CommandContribution,
   HostBridgeMessage,
@@ -66,6 +67,7 @@ class Bridge {
   private initDone: Promise<void>;
   private pushHandlers = new Set<(topic: PushTopic, data: unknown) => void>();
   private manifestResolve: ((m: PluginManifest) => void) | null = null;
+  commandHandlers = new Set<(msg: HostBridgeCommand) => void>();
 
   private pluginIdField: string;
   private surfaceField: string;
@@ -116,6 +118,9 @@ class Bridge {
           break;
         case 'edp-manifest':
           this.manifestResolve?.(msg.manifest);
+          break;
+        case 'edp-command':
+          this.commandHandlers.forEach((fn) => fn(msg));
           break;
       }
     });
@@ -244,6 +249,12 @@ export interface PluginContext {
   commands: {
     register(cmd: CommandContribution): Promise<void>;
     unregister(id: string): Promise<void>;
+    /**
+     * Handle a command invocation routed from the shell (palette, Quick
+     * Capture, keybindings). Return value is passed back to the shell;
+     * thrown errors surface as command-failed toasts.
+     */
+    onCommand(fn: (id: string, args: string | undefined) => unknown): () => void;
   };
   events: {
     emit(name: string, data?: unknown): Promise<void>;
@@ -455,6 +466,33 @@ function buildContext(): PluginContext {
       register: (cmd) =>
         bridge.call('commands.register', { command: cmd }).then(() => undefined),
       unregister: (id) => bridge.call('commands.unregister', { id }).then(() => undefined),
+      onCommand(fn) {
+        const handler = (msg: HostBridgeCommand) => {
+          void (async () => {
+            try {
+              const result = await fn(msg.id, msg.args);
+              window.parent.postMessage(
+                { type: 'edp-command-result', requestId: msg.requestId, ok: true, result },
+                '*',
+              );
+            } catch (err) {
+              window.parent.postMessage(
+                {
+                  type: 'edp-command-result',
+                  requestId: msg.requestId,
+                  ok: false,
+                  error: String(err),
+                },
+                '*',
+              );
+            }
+          })();
+        };
+        bridge.commandHandlers.add(handler);
+        const off = () => bridge.commandHandlers.delete(handler);
+        disposers.push(off);
+        return off;
+      },
     },
     events: {
       emit: (name, data) => bridge.call('events.emit', { name, data }).then(() => undefined),
