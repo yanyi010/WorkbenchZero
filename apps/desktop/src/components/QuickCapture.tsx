@@ -22,7 +22,7 @@ export function QuickCapture() {
   const open = overlay === 'capture';
 
   const providers = useMemo(() => {
-    const out: Array<{ pluginId: string; c: CaptureProviderContribution }> = [];
+    const out: { pluginId: string; c: CaptureProviderContribution }[] = [];
     for (const p of plugins) {
       if (p.state !== 'enabled' && p.state !== 'active') continue;
       for (const c of p.manifest.contributes?.captureProviders ?? []) {

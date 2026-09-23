@@ -18,6 +18,8 @@
     "packages/*/src/**/*.ts",
     "packages/*/src/**/*.tsx",
     "apps/desktop/src/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
     "apps/desktop/src/**/*.tsx",
     "vitest.config.ts"
   ]

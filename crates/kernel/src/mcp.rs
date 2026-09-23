@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
 
-use crate::{CallerCtx, Kernel, KernelError, KResult};
+use crate::{CallerCtx, KResult, Kernel, KernelError};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
 const CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
@@ -55,7 +55,10 @@ impl Default for McpManager {
 
 impl McpManager {
     pub fn new() -> Self {
-        Self { config_path: Mutex::new(None), connections: Mutex::new(HashMap::new()) }
+        Self {
+            config_path: Mutex::new(None),
+            connections: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn set_config_path(&self, path: PathBuf) {
@@ -91,7 +94,9 @@ impl McpManager {
     pub fn add_server(&self, name: &str, command: &str, args: &[String]) -> KResult<()> {
         let mut servers = self.read_config();
         if servers.iter().any(|s| s.name == name) {
-            return Err(KernelError::Message(format!("mcp server `{name}` already exists")));
+            return Err(KernelError::Message(format!(
+                "mcp server `{name}` already exists"
+            )));
         }
         servers.push(ServerConfig {
             name: name.to_string(),
@@ -172,7 +177,9 @@ impl McpManager {
             .find(|s| s.name == name)
             .ok_or_else(|| KernelError::Message(format!("unknown mcp server `{name}`")))?;
         if !config.enabled {
-            return Err(KernelError::Message(format!("mcp server `{name}` is disabled")));
+            return Err(KernelError::Message(format!(
+                "mcp server `{name}` is disabled"
+            )));
         }
 
         let mut child = Command::new(&config.command)
@@ -181,7 +188,9 @@ impl McpManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| KernelError::Message(format!("failed to start `{}`: {e}", config.command)))?;
+            .map_err(|e| {
+                KernelError::Message(format!("failed to start `{}`: {e}", config.command))
+            })?;
         let stdin = child
             .stdin
             .take()
@@ -214,9 +223,18 @@ impl McpManager {
                     if line.trim().is_empty() {
                         continue;
                     }
-                    let Ok(msg) = serde_json::from_str::<Value>(&line) else { continue };
+                    let Ok(msg) = serde_json::from_str::<Value>(&line) else {
+                        continue;
+                    };
                     if let Some(id) = msg.get("id").and_then(|v| v.as_u64()) {
-                        if let Some(tx) = reader_conn.lock().unwrap().pending.lock().unwrap().remove(&id) {
+                        if let Some(tx) = reader_conn
+                            .lock()
+                            .unwrap()
+                            .pending
+                            .lock()
+                            .unwrap()
+                            .remove(&id)
+                        {
                             let _ = tx.send(msg);
                         }
                     }
@@ -225,14 +243,21 @@ impl McpManager {
             .map_err(|e| KernelError::Message(format!("cannot spawn reader: {e}")))?;
 
         // Handshake: initialize.
-        let init_result = call(&conn, "initialize", json!({
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": { "name": "eigendesk", "version": "0.1.0" }
-        }))?;
+        let init_result = call(
+            &conn,
+            "initialize",
+            json!({
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": { "name": "eigendesk", "version": "0.1.0" }
+            }),
+        )?;
         {
             let mut guard = conn.lock().unwrap();
-            guard.server_info = init_result.get("serverInfo").cloned().unwrap_or(Value::Null);
+            guard.server_info = init_result
+                .get("serverInfo")
+                .cloned()
+                .unwrap_or(Value::Null);
         }
         let _ = notify(&conn, "notifications/initialized", json!({}));
         let tools_result = call(&conn, "tools/list", json!({}))?;
@@ -282,21 +307,30 @@ impl McpManager {
             .unwrap()
             .get(server)
             .cloned()
-            .ok_or_else(|| KernelError::Message(format!("mcp server `{server}` is not connected")))?;
-        let result = call(&conn, "tools/call", json!({
-            "name": tool,
-            "arguments": arguments,
-        }))?;
+            .ok_or_else(|| {
+                KernelError::Message(format!("mcp server `{server}` is not connected"))
+            })?;
+        let result = call(
+            &conn,
+            "tools/call",
+            json!({
+                "name": tool,
+                "arguments": arguments,
+            }),
+        )?;
         Ok(result)
     }
 }
 
 fn notify(conn: &Arc<Mutex<McpConnection>>, method: &str, params: Value) -> KResult<()> {
-    send_raw(conn, json!({
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params,
-    }))
+    send_raw(
+        conn,
+        json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+        }),
+    )
 }
 
 fn send_raw(conn: &Arc<Mutex<McpConnection>>, msg: Value) -> KResult<()> {
@@ -341,7 +375,9 @@ fn call(conn: &Arc<Mutex<McpConnection>>, method: &str, params: Value) -> KResul
     match rx.recv_timeout(CALL_TIMEOUT) {
         Ok(response) => {
             if let Some(err) = response.get("error") {
-                return Err(KernelError::Message(format!("mcp call `{method}` failed: {err}")));
+                return Err(KernelError::Message(format!(
+                    "mcp call `{method}` failed: {err}"
+                )));
             }
             Ok(response.get("result").cloned().unwrap_or(Value::Null))
         }

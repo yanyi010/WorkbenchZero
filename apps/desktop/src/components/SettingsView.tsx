@@ -87,7 +87,7 @@ function SettingRow({ d }: { d: SettingDescriptor }) {
         )}
         {d.type === 'enum' && (
           <select
-            value={String(value ?? '')}
+            value={typeof value === 'string' ? value : ''}
             onChange={(e) => void set(e.target.value)}
             aria-label={d.title}
             style={{
@@ -109,7 +109,7 @@ function SettingRow({ d }: { d: SettingDescriptor }) {
         {(d.type === 'string' || d.type === 'path' || d.type === 'number') && (
           <Input
             style={{ width: 260 }}
-            defaultValue={String(value ?? '')}
+            defaultValue={typeof value === 'string' ? value : ''}
             aria-label={d.title}
             onBlur={(e) => void set(d.type === 'number' ? Number(e.target.value) : e.target.value)}
           />

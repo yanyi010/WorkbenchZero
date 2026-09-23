@@ -14,7 +14,7 @@ type HostMessage = { type: string } & Record<string, unknown>;
 type HostListener = (msg: HostMessage) => void;
 
 /** Window listeners installed by FakeHosts, removed between tests. */
-const cleanups: Array<() => void> = [];
+const cleanups: (() => void)[] = [];
 
 /** A controllable stand-in for the trusted main frame. */
 class FakeHost {
@@ -25,6 +25,7 @@ class FakeHost {
     // The SDK posts to window.parent; make the window its own parent.
     Object.defineProperty(window, 'parent', { value: window, configurable: true });
 
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- FakeHost methods need a stable self reference
     const self = this;
     // Intercept plugin → host traffic synchronously.
     window.postMessage = ((msg: unknown) => {

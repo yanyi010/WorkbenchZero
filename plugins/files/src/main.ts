@@ -46,7 +46,7 @@ let rootPath = '';
 let tree: TreeNode | null = null;
 let selectedPath: string | null = null;
 let preview: { path: string; kind: 'text' | 'markdown' | 'binary'; content: string } | null = null;
-let loading = false;
+const loading = false;
 
 function iconFor(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';

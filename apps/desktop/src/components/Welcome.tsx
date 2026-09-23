@@ -50,7 +50,7 @@ export function Welcome() {
     setBusy(true);
     try {
       if (pack) {
-        const results = (await rpc<Array<{ id: string; ok: boolean; error?: string }>>(
+        const results = (await rpc<{ id: string; ok: boolean; error?: string }[]>(
           Methods.plugins.installPack,
           { packId: pack.id },
         )) ?? [];

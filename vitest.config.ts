@@ -8,6 +8,7 @@ export default defineConfig({
       'apps/desktop/src/**/*.test.{ts,tsx}',
       'plugins/*/src/**/*.test.{ts,tsx}',
       'examples/*/src/**/*.test.{ts,tsx}',
+      'tests/**/*.test.{ts,tsx}',
     ],
   },
   resolve: {

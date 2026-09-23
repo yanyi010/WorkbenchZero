@@ -29,7 +29,10 @@ pub fn valid_event_name(name: &str) -> bool {
         if seg.is_empty() {
             return false;
         }
-        if !seg.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_') {
+        if !seg
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
             return false;
         }
         parts += 1;
@@ -64,7 +67,12 @@ pub struct Subscription {
 
 impl Drop for Subscription {
     fn drop(&mut self) {
-        self.bus.state.subscribers.lock().unwrap().retain(|s| s.id != self.id);
+        self.bus
+            .state
+            .subscribers
+            .lock()
+            .unwrap()
+            .retain(|s| s.id != self.id);
     }
 }
 
@@ -76,8 +84,16 @@ impl EventBus {
     pub fn subscribe(&self, filter: Option<String>) -> Subscription {
         let id = self.state.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::unbounded_channel();
-        self.state.subscribers.lock().unwrap().push(Subscriber { id, filter, sender: tx });
-        Subscription { bus: self.clone(), id, receiver: rx }
+        self.state.subscribers.lock().unwrap().push(Subscriber {
+            id,
+            filter,
+            sender: tx,
+        });
+        Subscription {
+            bus: self.clone(),
+            id,
+            receiver: rx,
+        }
     }
 
     /// Emit an event to all matching subscribers. Returns delivery count.
@@ -140,7 +156,11 @@ mod tests {
     async fn emit_subscribe_roundtrip() {
         let bus = EventBus::new();
         let mut sub = bus.subscribe(Some("memo.created".into()));
-        let delivered = bus.emit("memo.created", Some("eigendesk.memo".into()), serde_json::json!({"uri": "memo://1"}));
+        let delivered = bus.emit(
+            "memo.created",
+            Some("eigendesk.memo".into()),
+            serde_json::json!({"uri": "memo://1"}),
+        );
         assert_eq!(delivered, 1);
         let ev = sub.receiver.recv().await.unwrap();
         assert_eq!(ev.name, "memo.created");

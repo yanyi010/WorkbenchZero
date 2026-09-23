@@ -102,7 +102,10 @@ impl WorkspaceManager {
         } else {
             Vec::new()
         };
-        Ok(Self { registry_path, records })
+        Ok(Self {
+            registry_path,
+            records,
+        })
     }
 
     fn save_registry(&self) -> Result<(), WorkspaceError> {
@@ -131,7 +134,12 @@ impl WorkspaceManager {
 
     /// Create a new workspace rooted at `root` (must exist or `create_root`
     /// must be true). Returns the opened workspace.
-    pub fn create(&mut self, name: &str, root: PathBuf, create_root: bool) -> Result<Workspace, WorkspaceError> {
+    pub fn create(
+        &mut self,
+        name: &str,
+        root: PathBuf,
+        create_root: bool,
+    ) -> Result<Workspace, WorkspaceError> {
         if create_root && !root.exists() {
             std::fs::create_dir_all(&root)?;
         }
@@ -159,11 +167,14 @@ impl WorkspaceManager {
             name: name.to_string(),
             created_at: record.created_at.clone(),
         };
-        write_json(&workbench.join("workspace.json"), &serde_json::to_value(&meta)?)?;
+        write_json(
+            &workbench.join("workspace.json"),
+            &serde_json::to_value(&meta)?,
+        )?;
         self.records.retain(|r| r.root != record.root);
         self.records.push(record.clone());
         self.save_registry()?;
-        Ok(self.materialize(record)?)
+        self.materialize(record)
     }
 
     /// Register an existing workspace directory (contains `.workbench/`).
@@ -181,7 +192,10 @@ impl WorkspaceManager {
         }
         let meta: WorkspaceMeta = serde_json::from_str(&std::fs::read_to_string(&meta_path)?)?;
         if meta.schema_version > WORKSPACE_SCHEMA_VERSION {
-            return Err(WorkspaceError::NewerSchema(meta.schema_version, WORKSPACE_SCHEMA_VERSION));
+            return Err(WorkspaceError::NewerSchema(
+                meta.schema_version,
+                WORKSPACE_SCHEMA_VERSION,
+            ));
         }
         let now = chrono::Utc::now().to_rfc3339();
         let record = WorkspaceRecord {
@@ -194,12 +208,14 @@ impl WorkspaceManager {
         self.records.retain(|r| r.root != record.root);
         self.records.push(record.clone());
         self.save_registry()?;
-        Ok(self.materialize(record)?)
+        self.materialize(record)
     }
 
     /// Open a registered workspace by id, verifying it still exists.
     pub fn open(&mut self, id: &str) -> Result<Workspace, WorkspaceError> {
-        let record = self.get(id).ok_or_else(|| WorkspaceError::Corrupt(format!("unknown workspace id {id}")))?;
+        let record = self
+            .get(id)
+            .ok_or_else(|| WorkspaceError::Corrupt(format!("unknown workspace id {id}")))?;
         if !record.root.is_dir() {
             return Err(WorkspaceError::RootMissing(record.root));
         }
@@ -213,7 +229,10 @@ impl WorkspaceManager {
         }
         let meta: WorkspaceMeta = serde_json::from_str(&std::fs::read_to_string(&meta_path)?)?;
         if meta.schema_version > WORKSPACE_SCHEMA_VERSION {
-            return Err(WorkspaceError::NewerSchema(meta.schema_version, WORKSPACE_SCHEMA_VERSION));
+            return Err(WorkspaceError::NewerSchema(
+                meta.schema_version,
+                WORKSPACE_SCHEMA_VERSION,
+            ));
         }
         let now = chrono::Utc::now().to_rfc3339();
         let mut record = record;
@@ -223,7 +242,7 @@ impl WorkspaceManager {
         self.records.retain(|r| r.id != record.id);
         self.records.push(record.clone());
         self.save_registry()?;
-        Ok(self.materialize(record)?)
+        self.materialize(record)
     }
 
     pub fn remove(&mut self, id: &str) -> Result<(), WorkspaceError> {
@@ -259,11 +278,11 @@ pub fn apply_sqlite_migrations(conn: &rusqlite::Connection) -> rusqlite::Result<
         "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
     )?;
     for (name, sql) in SQLITE_MIGRATIONS {
-        let applied: bool = conn
-            .query_row("SELECT COUNT(*) FROM schema_migrations WHERE name = ?1", [name], |r| {
-                r.get::<_, i64>(0)
-            })?
-            > 0;
+        let applied: bool = conn.query_row(
+            "SELECT COUNT(*) FROM schema_migrations WHERE name = ?1",
+            [name],
+            |r| r.get::<_, i64>(0),
+        )? > 0;
         if !applied {
             conn.execute_batch(sql)?;
             conn.execute(
@@ -310,7 +329,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "ed-ws-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().elapsed().unwrap().subsec_nanos()
+            std::time::SystemTime::now()
+                .elapsed()
+                .unwrap()
+                .subsec_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -340,7 +362,10 @@ mod tests {
         let mut mgr = WorkspaceManager::new(base.join("workspaces.json")).unwrap();
         let ws = mgr.create("X", base.join("x"), true).unwrap();
         std::fs::remove_dir_all(ws.root()).unwrap();
-        assert!(matches!(mgr.open(&ws.record.id), Err(WorkspaceError::RootMissing(_))));
+        assert!(matches!(
+            mgr.open(&ws.record.id),
+            Err(WorkspaceError::RootMissing(_))
+        ));
     }
 
     #[test]

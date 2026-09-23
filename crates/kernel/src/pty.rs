@@ -58,7 +58,12 @@ impl PtyManager {
                 })
             })
             .collect();
-        out.sort_by(|a, b| a["sessionId"].as_str().unwrap_or("").cmp(b["sessionId"].as_str().unwrap_or("")));
+        out.sort_by(|a, b| {
+            a["sessionId"]
+                .as_str()
+                .unwrap_or("")
+                .cmp(b["sessionId"].as_str().unwrap_or(""))
+        });
         out
     }
 
@@ -71,7 +76,8 @@ impl PtyManager {
     }
 
     pub fn kill_all(&self) {
-        let sessions: Vec<Arc<PtySession>> = self.sessions.lock().unwrap().values().cloned().collect();
+        let sessions: Vec<Arc<PtySession>> =
+            self.sessions.lock().unwrap().values().cloned().collect();
         for session in sessions {
             session.kill();
         }
@@ -91,7 +97,12 @@ impl PtySession {
         self.master
             .lock()
             .unwrap()
-            .resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .map_err(|e| KernelError::Message(format!("pty resize failed: {e}")))
     }
 
@@ -138,12 +149,17 @@ pub fn create(
         _ => kernel
             .current_workspace()
             .map(|ws| ws.workspace.root().to_path_buf())
-            .unwrap_or_else(|| std::env::temp_dir()),
+            .unwrap_or_else(std::env::temp_dir),
     };
 
     let pty_system = portable_pty::native_pty_system();
     let pair = pty_system
-        .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
         .map_err(|e| KernelError::Message(format!("openpty failed: {e}")))?;
 
     let mut cmd = CommandBuilder::new(&shell);
@@ -189,7 +205,12 @@ pub fn create(
         killer: Mutex::new(killer),
         alive: AtomicBool::new(true),
     });
-    kernel.pty.sessions.lock().unwrap().insert(session_id.clone(), session.clone());
+    kernel
+        .pty
+        .sessions
+        .lock()
+        .unwrap()
+        .insert(session_id.clone(), session.clone());
 
     let target = caller.plugin_id.clone();
     let target_read = target.clone();
@@ -206,14 +227,18 @@ pub fn create(
                         let data = b64_encode(&buf[..n]);
                         match &target_read {
                             Some(plugin) => {
-                                kernel_for_read
-                                    .push
-                                    .push_to_plugin(plugin, "pty", serde_json::json!({ "sessionId": sid, "data": data }));
+                                kernel_for_read.push.push_to_plugin(
+                                    plugin,
+                                    "pty",
+                                    serde_json::json!({ "sessionId": sid, "data": data }),
+                                );
                             }
                             None => {
-                                kernel_for_read
-                                    .push
-                                    .push("pty", None, serde_json::json!({ "sessionId": sid, "data": data }));
+                                kernel_for_read.push.push(
+                                    "pty",
+                                    None,
+                                    serde_json::json!({ "sessionId": sid, "data": data }),
+                                );
                             }
                         }
                     }
@@ -238,14 +263,18 @@ pub fn create(
             let success = status.map(|s| s.success()).unwrap_or(false);
             match &target_wait {
                 Some(plugin) => {
-                    kernel_for_wait
-                        .push
-                        .push_to_plugin(plugin, "pty", serde_json::json!({ "sessionId": sid, "kind": "exit", "success": success }));
+                    kernel_for_wait.push.push_to_plugin(
+                        plugin,
+                        "pty",
+                        serde_json::json!({ "sessionId": sid, "kind": "exit", "success": success }),
+                    );
                 }
                 None => {
-                    kernel_for_wait
-                        .push
-                        .push("pty", None, serde_json::json!({ "sessionId": sid, "kind": "exit", "success": success }));
+                    kernel_for_wait.push.push(
+                        "pty",
+                        None,
+                        serde_json::json!({ "sessionId": sid, "kind": "exit", "success": success }),
+                    );
                 }
             }
             kernel_for_wait.events.emit(

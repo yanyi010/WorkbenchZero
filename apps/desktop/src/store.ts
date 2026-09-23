@@ -75,7 +75,7 @@ interface AppState {
   closeTab(id: string): void;
   setActiveTab(id: string): void;
   setOverlay(overlay: AppState['overlay']): void;
-  toggleTheme(): void;
+  toggleTheme(): Promise<void>;
   pushToast(t: Omit<Toast, 'id' | 'createdAt'>): void;
   dismissToast(id: string): void;
   handleKernelPush(batch: PushMessage[]): void;
@@ -121,6 +121,10 @@ export const useApp = create<AppState>((set, get) => ({
         get().refreshWorkspaces(),
         get().refreshPlugins(),
         get().refreshSettings(),
+        // Keybindings resolve from the command table — without this the
+        // palette/capture/search shortcuts stay dead until a plugin-state
+        // push happens to trigger a refresh.
+        get().refreshCommands(),
       ]);
       const theme = (get().settings['core.appearance.theme'] as string) === 'dark'
         ? 'dark'
@@ -192,10 +196,10 @@ export const useApp = create<AppState>((set, get) => ({
     set({ overlay });
   },
 
-  toggleTheme() {
+  async toggleTheme() {
     const theme = get().theme === 'dark' ? 'light' : 'dark';
     set({ theme });
-    void rpc(Methods.settings.set, {
+    await rpc(Methods.settings.set, {
       scope: 'global',
       key: 'core.appearance.theme',
       value: theme,
@@ -342,7 +346,7 @@ async function runCoreCommand(id: string, _args?: string): Promise<void> {
       app.setOverlay('shortcuts');
       break;
     case 'core.toggleTheme':
-      app.toggleTheme();
+      await app.toggleTheme();
       break;
     case 'core.openLogsFolder':
       await rpc(Methods.system.reveal, { path: (await rpc<{ dir: string }>(Methods.app.logFile)).dir });

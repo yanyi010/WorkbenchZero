@@ -382,7 +382,7 @@ definePlugin({
 
     ctx.events.on('artifact.open', (data) => {
       const uri = (data as { uri?: string })?.uri;
-      if (!uri || !uri.endsWith('.md')) return;
+      if (!uri?.endsWith('.md')) return;
       if (memos.some((m) => m.uri === uri)) {
         activeUri = uri;
         drawMain();

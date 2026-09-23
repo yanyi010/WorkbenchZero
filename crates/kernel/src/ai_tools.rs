@@ -27,9 +27,17 @@ pub struct AiToolRegistry {
     tools: RwLock<HashMap<String, AiTool>>,
 }
 
+impl Default for AiToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AiToolRegistry {
     pub fn new() -> Self {
-        Self { tools: RwLock::new(HashMap::new()) }
+        Self {
+            tools: RwLock::new(HashMap::new()),
+        }
     }
 
     pub fn register(&self, plugin_id: &str, value: Value) -> KResult<()> {
@@ -45,7 +53,10 @@ impl AiToolRegistry {
                 .unwrap_or_default()
                 .to_string(),
             parameters: value.get("parameters").cloned().unwrap_or(Value::Null),
-            high_risk: value.get("highRisk").and_then(|v| v.as_bool()).unwrap_or(false),
+            high_risk: value
+                .get("highRisk")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             plugin_id: plugin_id.to_string(),
             name,
         };
@@ -54,7 +65,11 @@ impl AiToolRegistry {
     }
 
     /// Register a manifest-declared tool for a plugin (idempotent refresh).
-    pub fn register_manifest_tools(&self, plugin_id: &str, manifest_tools: &[eigendesk_plugin_runtime::AiToolContribution]) {
+    pub fn register_manifest_tools(
+        &self,
+        plugin_id: &str,
+        manifest_tools: &[eigendesk_plugin_runtime::AiToolContribution],
+    ) {
         self.unregister_by_plugin(plugin_id);
         for t in manifest_tools {
             let _ = self.register(
@@ -70,7 +85,10 @@ impl AiToolRegistry {
     }
 
     pub fn unregister_by_plugin(&self, plugin_id: &str) {
-        self.tools.write().unwrap().retain(|_, t| t.plugin_id != plugin_id);
+        self.tools
+            .write()
+            .unwrap()
+            .retain(|_, t| t.plugin_id != plugin_id);
     }
 
     pub fn list(&self) -> Vec<AiTool> {
@@ -92,6 +110,12 @@ pub struct PendingToolCalls {
     pending: RwLock<HashMap<u64, (String, std::sync::mpsc::Sender<Value>)>>,
 }
 
+impl Default for PendingToolCalls {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PendingToolCalls {
     pub fn new() -> Self {
         Self {
@@ -103,9 +127,14 @@ impl PendingToolCalls {
     /// Park a tool call; returns the request id and the receiving end the
     /// RPC thread will block on.
     pub fn begin(&self, owner: &str) -> (u64, std::sync::mpsc::Receiver<Value>) {
-        let id = self.next_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let id = self
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let (tx, rx) = std::sync::mpsc::channel();
-        self.pending.write().unwrap().insert(id, (owner.to_string(), tx));
+        self.pending
+            .write()
+            .unwrap()
+            .insert(id, (owner.to_string(), tx));
         (id, rx)
     }
 
@@ -124,9 +153,17 @@ pub struct PluginLogs {
     logs: RwLock<HashMap<String, Vec<Value>>>,
 }
 
+impl Default for PluginLogs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginLogs {
     pub fn new() -> Self {
-        Self { logs: RwLock::new(HashMap::new()) }
+        Self {
+            logs: RwLock::new(HashMap::new()),
+        }
     }
 
     pub fn push(&self, plugin_id: &str, level: &str, message: &str) {
@@ -144,6 +181,11 @@ impl PluginLogs {
     }
 
     pub fn get(&self, plugin_id: &str) -> Vec<Value> {
-        self.logs.read().unwrap().get(plugin_id).cloned().unwrap_or_default()
+        self.logs
+            .read()
+            .unwrap()
+            .get(plugin_id)
+            .cloned()
+            .unwrap_or_default()
     }
 }

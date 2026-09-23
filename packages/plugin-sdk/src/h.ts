@@ -7,9 +7,7 @@
  */
 export type Child = Node | string | number | null | undefined | false | Child[];
 
-export interface Attrs {
-  [key: string]: unknown;
-}
+export type Attrs = Record<string, unknown>;
 
 function appendChild(parent: Node, child: Child): void {
   if (child === null || child === undefined || child === false) return;
@@ -46,7 +44,7 @@ export function h(
       } else if (value === true) {
         el.setAttribute(key, '');
       } else {
-        el.setAttribute(key, String(value));
+        el.setAttribute(key, String(value as string | number));
       }
     }
   }

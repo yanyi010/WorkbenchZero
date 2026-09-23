@@ -85,7 +85,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 // Input
 // ---------------------------------------------------------------------------
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { style, ...rest },
@@ -216,7 +216,7 @@ export function Tabs({
   active,
   onChange,
 }: {
-  tabs: Array<{ id: string; title: string }>;
+  tabs: { id: string; title: string }[];
   active: string;
   onChange: (id: string) => void;
 }) {
@@ -694,8 +694,8 @@ export function Table({
   rows,
   empty,
 }: {
-  columns: Array<{ key: string; title: React.ReactNode; width?: number | string }>;
-  rows: Array<Record<string, React.ReactNode>>;
+  columns: { key: string; title: React.ReactNode; width?: number | string }[];
+  rows: Record<string, React.ReactNode>[];
   empty?: React.ReactNode;
 }) {
   if (rows.length === 0) {
@@ -786,7 +786,7 @@ const mdCache = new Map<string, string>();
 export function Markdown({ source }: { source: string }) {
   let html = mdCache.get(source);
   if (html === undefined) {
-    const raw = marked.parse(source, { async: false, gfm: true, breaks: true }) as string;
+    const raw = marked.parse(source, { async: false, gfm: true, breaks: true });
     html = DOMPurify.sanitize(raw, {
       USE_PROFILES: { html: true },
       FORBID_TAGS: ['style', 'form', 'input', 'iframe', 'script'],

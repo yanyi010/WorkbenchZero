@@ -6,7 +6,7 @@
 import { definePlugin, h, render } from '@eigendesk/plugin-sdk';
 
 definePlugin({
-  async activate(ctx) {
+  activate(ctx) {
     let greetings = 0;
 
     ctx.commands.onCommand((id, args) => {

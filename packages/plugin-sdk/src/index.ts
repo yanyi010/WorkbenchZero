@@ -368,7 +368,7 @@ export interface PluginContext {
     ): () => void;
     /** All AI tools registered kernel-side (any plugin may ask). */
     listTools(): Promise<
-      Array<{ name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }>
+      { name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }[]
     >;
     /**
      * Invoke a registered tool (routed to its owning plugin by the
@@ -392,7 +392,7 @@ export interface PluginDefinition {
 }
 
 let activeDefinition: PluginDefinition | null = null;
-let disposers: Array<() => void> = [];
+const disposers: (() => void)[] = [];
 let resolvedManifest: PluginManifest | null = null;
 
 export function definePlugin(def: PluginDefinition): void {
@@ -602,13 +602,13 @@ function buildContext(): PluginContext {
         let set = ptyDataHandlers.get(id);
         if (!set) ptyDataHandlers.set(id, (set = new Set()));
         set.add(fn);
-        return () => set!.delete(fn);
+        return () => set.delete(fn);
       },
       onExit(id, fn) {
         let set = ptyExitHandlers.get(id);
         if (!set) ptyExitHandlers.set(id, (set = new Set()));
         set.add(fn);
-        return () => set!.delete(fn);
+        return () => set.delete(fn);
       },
     },
     notify: {
@@ -646,7 +646,7 @@ function buildContext(): PluginContext {
         return () => toolCallHandlers.delete(fn);
       },
       listTools: () =>
-        bridge.call<Array<{ name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }>>(
+        bridge.call<{ name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }[]>(
           'ai.listTools',
           {},
         ),

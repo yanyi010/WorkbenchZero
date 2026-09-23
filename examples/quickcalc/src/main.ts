@@ -7,7 +7,7 @@ import { definePlugin } from '@eigendesk/plugin-sdk';
 import { evaluate } from './calc';
 
 definePlugin({
-  async activate(ctx) {
+  activate(ctx) {
     ctx.commands.onCommand((id, args) => {
       if (id !== 'community.quickcalc.eval') return undefined;
       const expression = (args ?? '').trim();

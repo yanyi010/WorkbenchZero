@@ -39,7 +39,10 @@ pub fn validate_uri(uri: &str) -> Result<(), ArtifactError> {
     if !first.is_ascii_lowercase() {
         return Err(invalid());
     }
-    if !scheme.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '+' || c == '-' || c == '.') {
+    if !scheme
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '+' || c == '-' || c == '.')
+    {
         return Err(invalid());
     }
     Ok(())
@@ -125,12 +128,16 @@ impl<'a> ArtifactRegistry<'a> {
     }
 
     pub fn remove(&self, uri: &str) -> Result<bool, ArtifactError> {
-        let n = self.conn.execute("DELETE FROM artifacts WHERE uri = ?1", [uri])?;
+        let n = self
+            .conn
+            .execute("DELETE FROM artifacts WHERE uri = ?1", [uri])?;
         Ok(n > 0)
     }
 
     pub fn remove_by_plugin(&self, plugin_id: &str) -> Result<usize, ArtifactError> {
-        let n = self.conn.execute("DELETE FROM artifacts WHERE plugin_id = ?1", [plugin_id])?;
+        let n = self
+            .conn
+            .execute("DELETE FROM artifacts WHERE plugin_id = ?1", [plugin_id])?;
         Ok(n)
     }
 
@@ -149,7 +156,8 @@ impl<'a> ArtifactRegistry<'a> {
         })
     }
 
-    const COLS: &'static str = "uri, type, title, plugin_id, metadata_json, created_at, updated_at, last_opened_at";
+    const COLS: &'static str =
+        "uri, type, title, plugin_id, metadata_json, created_at, updated_at, last_opened_at";
 
     pub fn describe(&self, uri: &str) -> Result<ArtifactRecord, ArtifactError> {
         self.conn
@@ -205,7 +213,10 @@ impl<'a> ArtifactRegistry<'a> {
     }
 
     pub fn count(&self) -> Result<u64, ArtifactError> {
-        Ok(self.conn.query_row("SELECT COUNT(*) FROM artifacts", [], |r| r.get::<_, i64>(0))? as u64)
+        Ok(self
+            .conn
+            .query_row("SELECT COUNT(*) FROM artifacts", [], |r| r.get::<_, i64>(0))?
+            as u64)
     }
 }
 
@@ -236,7 +247,8 @@ mod tests {
     fn upsert_describe_roundtrip() {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
-        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")]).unwrap();
+        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")])
+            .unwrap();
         let got = reg.describe("memo://1").unwrap();
         assert_eq!(got.title.as_deref(), Some("Title memo://1"));
         assert_eq!(got.metadata.unwrap()["tags"][0], "a");
@@ -246,11 +258,15 @@ mod tests {
     fn upsert_replaces() {
         let c = conn();
         let reg = ArtifactRegistry::new(&c);
-        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")]).unwrap();
+        reg.upsert_many(&[rec("memo://1", "eigendesk.memo", "memo")])
+            .unwrap();
         let mut r2 = rec("memo://1", "eigendesk.memo", "memo");
         r2.title = Some("New title".into());
         reg.upsert_many(&[r2]).unwrap();
-        assert_eq!(reg.describe("memo://1").unwrap().title.as_deref(), Some("New title"));
+        assert_eq!(
+            reg.describe("memo://1").unwrap().title.as_deref(),
+            Some("New title")
+        );
     }
 
     #[test]

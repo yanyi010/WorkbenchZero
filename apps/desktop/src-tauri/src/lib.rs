@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use eigendesk_kernel::{Kernel, KernelConfig, PushMessage, RpcRequest, RpcResponse};
-use tauri::http::{Request, Response};
 use std::borrow::Cow;
+use tauri::http::{Request, Response};
 use tauri::Manager;
 
 struct KernelState(Arc<Kernel>);
@@ -32,10 +32,7 @@ fn kernel_rpc(
 
 /// Toggle the global Quick Capture shortcut (Alt+Space).
 #[tauri::command]
-async fn set_global_capture(
-    app: tauri::AppHandle,
-    enabled: bool,
-) -> Result<(), String> {
+async fn set_global_capture(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
     let shortcuts = app.global_shortcut();
     const ACCEL: &str = "Alt+Space";
@@ -46,7 +43,8 @@ async fn set_global_capture(
                 .on_shortcut(ACCEL, move |_app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
                         if let Some(webview) = app_handle.get_webview_window("main") {
-                            let _ = webview.eval("window.__quickCapture && window.__quickCapture();");
+                            let _ =
+                                webview.eval("window.__quickCapture && window.__quickCapture();");
                         }
                     }
                 })
@@ -58,12 +56,17 @@ async fn set_global_capture(
     Ok(())
 }
 
-fn push_sink(app: tauri::AppHandle) -> Arc<dyn Fn(&[PushMessage]) + Send + Sync + 'static> {
+/// The kernel's push channel into the webview (eval of `__kernelInbox`).
+type PushSinkFn = Arc<dyn Fn(&[PushMessage]) + Send + Sync + 'static>;
+
+fn push_sink(app: tauri::AppHandle) -> PushSinkFn {
     Arc::new(move |batch: &[PushMessage]| {
         if batch.is_empty() {
             return;
         }
-        let Ok(json) = serde_json::to_string(batch) else { return };
+        let Ok(json) = serde_json::to_string(batch) else {
+            return;
+        };
         if let Some(webview) = app.get_webview_window("main") {
             let script = format!("window.__kernelInbox&&window.__kernelInbox({json});");
             if let Err(e) = webview.eval(&script) {
@@ -194,7 +197,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![kernel_rpc, set_global_capture])
         .setup(move |app| {
-            let bundled_dir = resource_dir(&app.handle()).map(|r| r.join("plugins"));
+            let bundled_dir = resource_dir(app.handle()).map(|r| r.join("plugins"));
             let kernel = Kernel::bootstrap(
                 KernelConfig {
                     app_version: version,

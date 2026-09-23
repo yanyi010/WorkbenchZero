@@ -50,7 +50,7 @@ export function TitleBar() {
         variant="ghost"
         small
         aria-label="Toggle theme"
-        onClick={() => useApp.getState().toggleTheme()}
+        onClick={() => void useApp.getState().toggleTheme()}
       >
         ◐
       </Button>

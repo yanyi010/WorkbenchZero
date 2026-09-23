@@ -267,7 +267,8 @@ pub fn valid_plugin_id(id: &str) -> bool {
         !s.is_empty()
             && s.len() <= 64
             && s.chars().next().unwrap().is_ascii_lowercase()
-            && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+            && s.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
     };
     valid_part(publisher) && valid_part(name)
 }
@@ -287,10 +288,16 @@ pub fn validate_manifest(m: &PluginManifest, path: &Path) -> Result<(), PluginEr
         return Err(PluginError::InvalidId(m.id.clone()));
     }
     if m.name.trim().is_empty() {
-        return Err(PluginError::Parse { path: path.display().to_string(), message: "name is required".into() });
+        return Err(PluginError::Parse {
+            path: path.display().to_string(),
+            message: "name is required".into(),
+        });
     }
     if m.api_version != API_VERSION {
-        return Err(PluginError::UnsupportedApi(m.api_version.clone(), API_VERSION.to_string()));
+        return Err(PluginError::UnsupportedApi(
+            m.api_version.clone(),
+            API_VERSION.to_string(),
+        ));
     }
     // Basic semver check.
     let parts: Vec<&str> = m.version.split('.').collect();
@@ -352,7 +359,11 @@ impl PluginManifest {
                 description: s.description.clone(),
                 default: s.default.clone(),
                 enum_values: s.enum_values.clone(),
-                scope: if s.scope == "workspace" { Scope::Workspace } else { Scope::Global },
+                scope: if s.scope == "workspace" {
+                    Scope::Workspace
+                } else {
+                    Scope::Global
+                },
                 plugin_id: Some(self.id.clone()),
             })
             .collect()
@@ -411,7 +422,10 @@ pub struct PluginRecord {
 
 impl PluginRecord {
     pub fn is_installed(&self) -> bool {
-        !matches!(self.state, PluginState::Discovered | PluginState::Uninstalled)
+        !matches!(
+            self.state,
+            PluginState::Discovered | PluginState::Uninstalled
+        )
     }
 
     /// Activation events this plugin subscribes to. Supports exact matches
@@ -511,7 +525,14 @@ impl PluginManager {
         dev_dir: PathBuf,
         registry_dir: PathBuf,
     ) -> Self {
-        Self { records: std::sync::RwLock::new(HashMap::new()), state_path, bundled_dir, user_dir, dev_dir, registry_dir }
+        Self {
+            records: std::sync::RwLock::new(HashMap::new()),
+            state_path,
+            bundled_dir,
+            user_dir,
+            dev_dir,
+            registry_dir,
+        }
     }
 
     // -- persistence --------------------------------------------------------
@@ -548,7 +569,10 @@ impl PluginManager {
         let mut records = persisted;
         let mut changed = Vec::new();
 
-        let mut scan = |dir: &Path, source: PluginSource, trusted_source: bool| -> Result<(), PluginError> {
+        let mut scan = |dir: &Path,
+                        source: PluginSource,
+                        trusted_source: bool|
+         -> Result<(), PluginError> {
             if !dir.is_dir() {
                 return Ok(());
             }
@@ -616,7 +640,10 @@ impl PluginManager {
             }
             let under_user = rec.install_path.starts_with(&user_dir);
             let under_dev = rec.install_path.starts_with(&dev_dir);
-            let under_bundled = bundled_dir.as_ref().map(|b| rec.install_path.starts_with(b)).unwrap_or(false);
+            let under_bundled = bundled_dir
+                .as_ref()
+                .map(|b| rec.install_path.starts_with(b))
+                .unwrap_or(false);
             under_user || under_dev || under_bundled
         });
 
@@ -663,7 +690,9 @@ impl PluginManager {
 
     pub fn set_state(&self, id: &str, state: PluginState) -> Result<(), PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         rec.state = state;
         if state == PluginState::Active || state == PluginState::Activating {
             rec.failure_count = 0;
@@ -673,16 +702,24 @@ impl PluginManager {
 
     pub fn record_failure(&self, id: &str) -> Result<u32, PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         rec.failure_count += 1;
         let count = rec.failure_count;
         self.save_state(&records)?;
         Ok(count)
     }
 
-    pub fn set_pending_permissions(&self, id: &str, pending: Option<Grants>) -> Result<(), PluginError> {
+    pub fn set_pending_permissions(
+        &self,
+        id: &str,
+        pending: Option<Grants>,
+    ) -> Result<(), PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         rec.pending_permissions = pending;
         self.save_state(&records)
     }
@@ -696,16 +733,22 @@ impl PluginManager {
         let staging: PathBuf;
         let src_dir: PathBuf = if path.is_dir() {
             path
-        } else if path.extension().map(|e| e == "zip").unwrap_or(false) || path.to_string_lossy().ends_with(".edplugin.zip") {
+        } else if path.extension().map(|e| e == "zip").unwrap_or(false)
+            || path.to_string_lossy().ends_with(".edplugin.zip")
+        {
             staging = self.extract_zip(&path)?;
             staging
         } else {
-            return Err(PluginError::Package(format!("`{source}` is neither a plugin directory nor a .edplugin.zip")));
+            return Err(PluginError::Package(format!(
+                "`{source}` is neither a plugin directory nor a .edplugin.zip"
+            )));
         };
 
         let manifest_path = src_dir.join("plugin.json");
         if !manifest_path.exists() {
-            return Err(PluginError::Package(format!("`{source}` has no plugin.json")));
+            return Err(PluginError::Package(format!(
+                "`{source}` has no plugin.json"
+            )));
         }
         let raw = std::fs::read_to_string(&manifest_path)?;
         let manifest = parse_manifest(&raw, &manifest_path)?;
@@ -761,8 +804,10 @@ impl PluginManager {
             std::process::id(),
             chrono::Utc::now().timestamp_subsec_nanos()
         ));
-        let file = std::fs::File::open(zip_path).map_err(|e| PluginError::Package(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file).map_err(|e| PluginError::Package(e.to_string()))?;
+        let file =
+            std::fs::File::open(zip_path).map_err(|e| PluginError::Package(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| PluginError::Package(e.to_string()))?;
         archive
             .extract(&staging)
             .map_err(|e| PluginError::Package(format!("zip extract failed: {e}")))?;
@@ -770,20 +815,26 @@ impl PluginManager {
         if staging.join("plugin.json").exists() {
             Ok(staging)
         } else {
-            for entry in std::fs::read_dir(&staging).map_err(|e| PluginError::Package(e.to_string()))? {
+            for entry in
+                std::fs::read_dir(&staging).map_err(|e| PluginError::Package(e.to_string()))?
+            {
                 let entry = entry.map_err(|e| PluginError::Package(e.to_string()))?;
                 if entry.path().join("plugin.json").exists() {
                     return Ok(entry.path());
                 }
             }
-            Err(PluginError::Package("zip does not contain a plugin.json".into()))
+            Err(PluginError::Package(
+                "zip does not contain a plugin.json".into(),
+            ))
         }
     }
 
     /// Approve the requested permission set and enable.
     pub fn approve_permissions(&self, id: &str, approve: bool) -> Result<PluginInfo, PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         if approve {
             let requested = if let Some(pending) = &rec.pending_permissions {
                 pending.clone()
@@ -804,9 +855,13 @@ impl PluginManager {
     /// Trusted (bundled) plugins can be installed with auto-granted permissions.
     pub fn install_trusted(&self, id: &str) -> Result<PluginInfo, PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         if !rec.trusted {
-            return Err(PluginError::State(format!("plugin {id} is not a trusted bundled plugin")));
+            return Err(PluginError::State(format!(
+                "plugin {id} is not a trusted bundled plugin"
+            )));
         }
         rec.granted = rec.manifest.requested_grants()?;
         rec.state = PluginState::Enabled;
@@ -818,7 +873,9 @@ impl PluginManager {
 
     pub fn enable(&self, id: &str) -> Result<PluginInfo, PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         if rec.state == PluginState::Installed || rec.pending_permissions.is_some() {
             return Err(PluginError::State(format!(
                 "plugin {id} requires permission approval before enabling"
@@ -832,7 +889,9 @@ impl PluginManager {
 
     pub fn disable(&self, id: &str) -> Result<PluginInfo, PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         rec.state = PluginState::Disabled;
         let info = PluginInfo::from(&*rec);
         self.save_state(&records)?;
@@ -841,14 +900,18 @@ impl PluginManager {
 
     pub fn set_pinned(&self, id: &str, pinned: bool) -> Result<(), PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         rec.pinned = pinned;
         self.save_state(&records)
     }
 
     pub fn uninstall(&self, id: &str) -> Result<(), PluginError> {
         let mut records = self.records.write().unwrap();
-        let rec = records.get_mut(id).ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
         if rec.trusted && rec.source == PluginSource::Bundled {
             // Bundled plugins are mark-uninstalled, not deleted (spec §93).
             rec.state = PluginState::Uninstalled;
@@ -992,7 +1055,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "ed-pr-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().elapsed().unwrap().subsec_nanos()
+            std::time::SystemTime::now()
+                .elapsed()
+                .unwrap()
+                .subsec_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -1003,7 +1069,12 @@ mod tests {
     #[test]
     fn install_from_edplugin_zip() {
         let base = temp();
-        let src = write_plugin(&base.join("pkg-src"), "test.zipped", "1.0.0", r#"["notification"]"#);
+        let src = write_plugin(
+            &base.join("pkg-src"),
+            "test.zipped",
+            "1.0.0",
+            r#"["notification"]"#,
+        );
 
         let zip_path = base.join("test-zipped-1.0.0.edplugin.zip");
         {
@@ -1013,7 +1084,8 @@ mod tests {
                 .compression_method(zip::CompressionMethod::Stored);
             for name in ["plugin.json", "entry.html"] {
                 writer.start_file(name, options).unwrap();
-                std::io::Write::write_all(&mut writer, &std::fs::read(src.join(name)).unwrap()).unwrap();
+                std::io::Write::write_all(&mut writer, &std::fs::read(src.join(name)).unwrap())
+                    .unwrap();
             }
             writer.finish().unwrap();
         }
@@ -1072,7 +1144,10 @@ mod tests {
             r#"{"id":"a.b","name":"A","version":"1.0","apiVersion":"1"}"#,
             r#"{"id":"a.b","name":"A","version":"1.0.0","apiVersion":"1","contributes":{"commands":[{"id":"  ","title":"x"}]}}"#,
         ] {
-            assert!(parse_manifest(raw, Path::new("x")).is_err(), "should reject: {raw}");
+            assert!(
+                parse_manifest(raw, Path::new("x")).is_err(),
+                "should reject: {raw}"
+            );
         }
     }
 
@@ -1087,9 +1162,15 @@ mod tests {
         assert_eq!(info.state, PluginState::Discovered);
 
         // Install from the user dir path itself (same dir; simulate install of external path).
-        let info = mgr.install_from(user_dir.join("test-alpha").to_str().unwrap()).unwrap();
+        let info = mgr
+            .install_from(user_dir.join("test-alpha").to_str().unwrap())
+            .unwrap();
         assert_eq!(info.state, PluginState::Installed);
-        assert!(mgr.get("test.alpha").unwrap().install_path.starts_with(&base.join("user-plugins")));
+        assert!(mgr
+            .get("test.alpha")
+            .unwrap()
+            .install_path
+            .starts_with(base.join("user-plugins")));
 
         // Enabling before approval fails.
         assert!(mgr.enable("test.alpha").is_err());
@@ -1102,7 +1183,11 @@ mod tests {
         assert_eq!(candidates.len(), 1);
 
         mgr.disable("test.alpha").unwrap();
-        assert_eq!(mgr.activation_candidates("onCommand:test.alpha.hello").len(), 0);
+        assert_eq!(
+            mgr.activation_candidates("onCommand:test.alpha.hello")
+                .len(),
+            0
+        );
         mgr.uninstall("test.alpha").unwrap();
         assert!(mgr.get("test.alpha").is_none());
     }
@@ -1140,13 +1225,24 @@ mod tests {
         write_plugin(&user_dir, "test.beta", "1.0.0", r#"["notification"]"#);
         let mgr = manager(&base);
         mgr.discover().unwrap();
-        mgr.install_from(user_dir.join("test-beta").to_str().unwrap()).unwrap();
+        mgr.install_from(user_dir.join("test-beta").to_str().unwrap())
+            .unwrap();
         mgr.approve_permissions("test.beta", true).unwrap();
 
         // Simulate an update that adds a new permission.
-        write_plugin(&user_dir, "test.beta", "1.1.0", r#"["notification","network"]"#);
-        let info = mgr.install_from(user_dir.join("test-beta").to_str().unwrap()).unwrap();
-        assert!(info.pending_permissions.is_some(), "new permission must require re-approval");
+        write_plugin(
+            &user_dir,
+            "test.beta",
+            "1.1.0",
+            r#"["notification","network"]"#,
+        );
+        let info = mgr
+            .install_from(user_dir.join("test-beta").to_str().unwrap())
+            .unwrap();
+        assert!(
+            info.pending_permissions.is_some(),
+            "new permission must require re-approval"
+        );
         assert!(mgr.enable("test.beta").is_err());
 
         let info = mgr.approve_permissions("test.beta", true).unwrap();
@@ -1156,8 +1252,12 @@ mod tests {
 
     #[test]
     fn drift_detection() {
-        let current = Grants { permissions: HashMap::from([("network".to_string(), Default::default())]) };
-        let same = Grants { permissions: HashMap::from([("network".to_string(), Default::default())]) };
+        let current = Grants {
+            permissions: HashMap::from([("network".to_string(), Default::default())]),
+        };
+        let same = Grants {
+            permissions: HashMap::from([("network".to_string(), Default::default())]),
+        };
         assert!(permission_drift(&current, &same).is_empty());
         let extra = Grants {
             permissions: HashMap::from([

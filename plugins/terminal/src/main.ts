@@ -16,7 +16,7 @@ interface TermSession {
   term: Terminal;
   fit: FitAddon;
   container: HTMLElement;
-  disposers: Array<() => void>;
+  disposers: (() => void)[];
 }
 
 let ctx: PluginContext;
@@ -47,7 +47,7 @@ function drawTabs(): void {
           tabindex: '0',
           onclick: () => activate(i),
           onkeydown: (ev: KeyboardEvent) => {
-            if (ev.key === 'Enter') activate(i);
+            if (ev.key === 'Enter') void activate(i);
           },
         },
           `${s.info.alive === false ? '⨯ ' : ''}${s.info.shell.split('/').pop() ?? 'sh'}`,
@@ -59,7 +59,7 @@ function drawTabs(): void {
               'aria-label': 'Close session',
               onclick: (ev: Event) => {
                 ev.stopPropagation();
-                close(i);
+                void close(i);
               },
             },
             '✕',
@@ -134,7 +134,7 @@ async function createSession(): Promise<void> {
     rows: Math.max(5, Math.floor(container.clientHeight / 18)),
   });
 
-  const disposers: Array<() => void> = [];
+  const disposers: (() => void)[] = [];
   disposers.push(
     ctx.pty.onData(info.sessionId, (data) => term.write(data)),
     ctx.pty.onExit(info.sessionId, () => {
@@ -202,7 +202,7 @@ definePlugin({
         let changed = false;
         for (const s of sessions) {
           const current = list.find((x) => x.sessionId === s.info.sessionId);
-          if (current && current.alive === false && s.info.alive !== false) {
+          if (current?.alive === false && s.info.alive !== false) {
             s.info.alive = false;
             changed = true;
           }

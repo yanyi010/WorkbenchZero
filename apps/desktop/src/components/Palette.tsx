@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ArtifactRecord, CommandDef } from '@eigendesk/protocol';
+import type { ArtifactRecord } from '@eigendesk/protocol';
 import type { CommandListItem } from '@eigendesk/ui-kit';
 import { Methods } from '@eigendesk/protocol';
 import { CommandList } from '@eigendesk/ui-kit';
@@ -64,14 +64,14 @@ export function Palette() {
   }, [open]);
 
   const items: CommandListItem[] = useMemo(() => {
-    const scored: Array<{ item: CommandListItem; score: number }> = [];
+    const scored: { item: CommandListItem; score: number }[] = [];
 
-    for (const cmd of commands as CommandDef[]) {
+    for (const cmd of commands) {
       if (cmd.hidden) continue;
       const score = Math.max(
         fuzzyScore(query, cmd.title),
         fuzzyScore(query, cmd.id),
-        ...cmd.keywords.map((k) => fuzzyScore(query, k) * 0.6),
+        ...(cmd.keywords ?? []).map((k) => fuzzyScore(query, k) * 0.6),
       );
       if (query && score <= 0) continue;
       scored.push({
@@ -141,7 +141,12 @@ export function Palette() {
     } else if (item.id.startsWith('view:')) {
       const [, rest] = item.id.split(':');
       const [pluginId, viewId] = rest.split('/');
-      openTab({ kind: 'plugin-view', title: String(item.title), pluginId, viewId });
+      openTab({
+        kind: 'plugin-view',
+        title: typeof item.title === 'string' ? item.title : '',
+        pluginId,
+        viewId,
+      });
     } else if (item.id.startsWith('artifact:')) {
       const uri = item.id.slice('artifact:'.length);
       const hit = recent.find((a) => a.uri === uri);

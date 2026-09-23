@@ -12,8 +12,8 @@ pub mod fs;
 pub mod mcp;
 pub mod net;
 pub mod notify;
-pub mod push;
 pub mod pty;
+pub mod push;
 pub mod rpc;
 pub mod session;
 pub mod watcher;
@@ -26,7 +26,7 @@ use eigendesk_commands::CommandRegistry;
 use eigendesk_events::EventBus;
 use eigendesk_permissions::Evaluator;
 use eigendesk_plugin_runtime::PluginManager;
-use eigendesk_settings::{Scope, SettingsService, SettingDescriptor, SettingType};
+use eigendesk_settings::{Scope, SettingDescriptor, SettingType, SettingsService};
 use eigendesk_storage::{Dirs, PluginStateStore};
 use eigendesk_workspace::{Workspace, WorkspaceManager};
 use once_cell::sync::Lazy;
@@ -132,7 +132,12 @@ pub struct RpcResponse {
 
 impl RpcResponse {
     pub fn ok(id: u64, result: serde_json::Value) -> Self {
-        Self { id, ok: true, result: Some(result), error: None }
+        Self {
+            id,
+            ok: true,
+            result: Some(result),
+            error: None,
+        }
     }
 
     pub fn err(id: u64, code: &str, message: impl Into<String>) -> Self {
@@ -140,7 +145,11 @@ impl RpcResponse {
             id,
             ok: false,
             result: None,
-            error: Some(RpcError { code: code.to_string(), message: message.into(), data: None }),
+            error: Some(RpcError {
+                code: code.to_string(),
+                message: message.into(),
+                data: None,
+            }),
         }
     }
 }
@@ -247,7 +256,9 @@ impl Kernel {
             kernel.apply_safe_mode();
         }
         kernel.sync_registries();
-        kernel.mcp.set_config_path(kernel.dirs.config.join("mcp-servers.json"));
+        kernel
+            .mcp
+            .set_config_path(kernel.dirs.config.join("mcp-servers.json"));
         startup.mark("plugin-discovery");
 
         core_commands::register_core_commands(&kernel.commands);
@@ -260,7 +271,9 @@ impl Kernel {
         watcher::start(kernel.clone());
 
         let startup_ms = startup.finish();
-        kernel.diagnostics.record_startup(startup_ms.0, startup_ms.1);
+        kernel
+            .diagnostics
+            .record_startup(startup_ms.0, startup_ms.1);
         tracing::info!(
             version = %kernel.app_version,
             safe_mode = kernel.safe_mode,
@@ -384,8 +397,11 @@ impl Kernel {
     pub fn sync_permission_grants(&self) {
         for info in self.plugins.list() {
             if let Some(rec) = self.plugins.get(&info.manifest.id) {
-                if rec.is_installed() && rec.state != eigendesk_plugin_runtime::PluginState::Uninstalled {
-                    self.permissions.set_grants(&info.manifest.id, rec.granted.clone());
+                if rec.is_installed()
+                    && rec.state != eigendesk_plugin_runtime::PluginState::Uninstalled
+                {
+                    self.permissions
+                        .set_grants(&info.manifest.id, rec.granted.clone());
                 } else {
                     self.permissions.remove_grants(&info.manifest.id);
                 }
@@ -399,8 +415,13 @@ impl Kernel {
     pub fn sync_registries(&self) {
         self.sync_permission_grants();
         let infos = self.plugins.list();
-        let enabled: Vec<&eigendesk_plugin_runtime::PluginInfo> =
-            infos.iter().filter(|i| i.state == eigendesk_plugin_runtime::PluginState::Enabled || i.state == eigendesk_plugin_runtime::PluginState::Active).collect();
+        let enabled: Vec<&eigendesk_plugin_runtime::PluginInfo> = infos
+            .iter()
+            .filter(|i| {
+                i.state == eigendesk_plugin_runtime::PluginState::Enabled
+                    || i.state == eigendesk_plugin_runtime::PluginState::Active
+            })
+            .collect();
         // Commands from enabled plugins.
         for info in &infos {
             let _ = self.commands.unregister_by_plugin(&info.manifest.id);
@@ -426,14 +447,16 @@ impl Kernel {
             self.settings.unregister_by_plugin(&info.manifest.id);
         }
         for info in &enabled {
-            self.settings.register_descriptors(info.manifest.setting_descriptors());
+            self.settings
+                .register_descriptors(info.manifest.setting_descriptors());
         }
         // AI tools from enabled plugins.
         for info in &infos {
             AI_TOOLS.unregister_by_plugin(&info.manifest.id);
         }
         for info in &enabled {
-            AI_TOOLS.register_manifest_tools(&info.manifest.id, &info.manifest.contributes.ai_tools);
+            AI_TOOLS
+                .register_manifest_tools(&info.manifest.id, &info.manifest.contributes.ai_tools);
         }
     }
 
@@ -446,7 +469,10 @@ impl Kernel {
             if info.state == eigendesk_plugin_runtime::PluginState::Enabled
                 || info.state == eigendesk_plugin_runtime::PluginState::Active
             {
-                let _ = self.plugins.set_state(&info.manifest.id, eigendesk_plugin_runtime::PluginState::Disabled);
+                let _ = self.plugins.set_state(
+                    &info.manifest.id,
+                    eigendesk_plugin_runtime::PluginState::Disabled,
+                );
             }
         }
         tracing::warn!("safe mode active: third-party plugins disabled for this session");
@@ -507,7 +533,8 @@ impl Kernel {
                 r
             }
         };
-        self.diagnostics.record_rpc(req.method.as_str(), start.elapsed().as_secs_f64() * 1000.0);
+        self.diagnostics
+            .record_rpc(req.method.as_str(), start.elapsed().as_secs_f64() * 1000.0);
         resp
     }
 
@@ -548,14 +575,17 @@ impl Kernel {
 
         let ws = {
             let mut mgr = self.workspaces.lock().unwrap();
-            mgr.open(id).map_err(|e| KernelError::Message(e.to_string()))?
+            mgr.open(id)
+                .map_err(|e| KernelError::Message(e.to_string()))?
         };
         let conn = rusqlite::Connection::open(&ws.sqlite_path)
             .map_err(|e| KernelError::Message(format!("cannot open index.sqlite: {e}")))?;
         eigendesk_workspace::apply_sqlite_migrations(&conn)
             .map_err(|e| KernelError::Message(format!("migration failed: {e}")))?;
-        eigendesk_artifacts::ArtifactRegistry::init(&conn).map_err(|e| KernelError::Message(e.to_string()))?;
-        eigendesk_search::SearchIndex::init(&conn).map_err(|e| KernelError::Message(e.to_string()))?;
+        eigendesk_artifacts::ArtifactRegistry::init(&conn)
+            .map_err(|e| KernelError::Message(e.to_string()))?;
+        eigendesk_search::SearchIndex::init(&conn)
+            .map_err(|e| KernelError::Message(e.to_string()))?;
         let state = Arc::new(WorkspaceState {
             workspace: ws,
             conn: Mutex::new(conn),
@@ -584,7 +614,8 @@ impl Kernel {
             .set_workspace(None)
             .map_err(|e| KernelError::Message(e.to_string()))?;
         *self.workspace_state.write().unwrap() = None;
-        self.events.emit("workspace.closed", None, serde_json::json!({}));
+        self.events
+            .emit("workspace.closed", None, serde_json::json!({}));
         Ok(())
     }
 

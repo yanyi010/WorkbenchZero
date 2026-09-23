@@ -134,7 +134,10 @@ impl SettingsService {
     }
 
     pub fn unregister_by_plugin(&self, plugin_id: &str) {
-        self.descriptors.write().unwrap().retain(|d| d.plugin_id.as_deref() != Some(plugin_id));
+        self.descriptors
+            .write()
+            .unwrap()
+            .retain(|d| d.plugin_id.as_deref() != Some(plugin_id));
     }
 
     pub fn descriptors(&self) -> Vec<SettingDescriptor> {
@@ -142,7 +145,12 @@ impl SettingsService {
     }
 
     pub fn descriptor(&self, key: &str) -> Option<SettingDescriptor> {
-        self.descriptors.read().unwrap().iter().find(|d| d.key == key).cloned()
+        self.descriptors
+            .read()
+            .unwrap()
+            .iter()
+            .find(|d| d.key == key)
+            .cloned()
     }
 
     fn validate(&self, key: &str, value: &serde_json::Value) -> Result<(), SettingsError> {
@@ -178,7 +186,9 @@ impl SettingsService {
                 return v.clone();
             }
         }
-        self.descriptor(key).and_then(|d| d.default).unwrap_or(serde_json::Value::Null)
+        self.descriptor(key)
+            .and_then(|d| d.default)
+            .unwrap_or(serde_json::Value::Null)
     }
 
     /// All effective values for descriptors (UI display).
@@ -191,7 +201,12 @@ impl SettingsService {
             .collect()
     }
 
-    pub fn set(&self, scope: Scope, key: &str, value: serde_json::Value) -> Result<(), SettingsError> {
+    pub fn set(
+        &self,
+        scope: Scope,
+        key: &str,
+        value: serde_json::Value,
+    ) -> Result<(), SettingsError> {
         self.validate(key, &value)?;
         let mut stores = self.stores.write().unwrap();
         match scope {
@@ -267,10 +282,12 @@ mod tests {
         let s = svc(&dir);
         s.register_descriptors(vec![bool_desc("core.test.flag", Scope::Workspace)]);
         assert_eq!(s.get("core.test.flag"), serde_json::json!(false)); // default
-        s.set(Scope::Global, "core.test.flag", serde_json::json!(true)).unwrap();
+        s.set(Scope::Global, "core.test.flag", serde_json::json!(true))
+            .unwrap();
         assert_eq!(s.get("core.test.flag"), serde_json::json!(true)); // global
         s.set_workspace(Some(dir.join("ws-settings.json"))).unwrap();
-        s.set(Scope::Workspace, "core.test.flag", serde_json::json!(false)).unwrap();
+        s.set(Scope::Workspace, "core.test.flag", serde_json::json!(false))
+            .unwrap();
         assert_eq!(s.get("core.test.flag"), serde_json::json!(false)); // workspace wins
     }
 
@@ -291,8 +308,12 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let s = svc(&dir);
         s.register_descriptors(vec![bool_desc("core.test.b", Scope::Global)]);
-        assert!(s.set(Scope::Global, "core.test.b", serde_json::json!("yes")).is_err());
-        assert!(s.set(Scope::Global, "core.test.b", serde_json::json!(true)).is_ok());
+        assert!(s
+            .set(Scope::Global, "core.test.b", serde_json::json!("yes"))
+            .is_err());
+        assert!(s
+            .set(Scope::Global, "core.test.b", serde_json::json!(true))
+            .is_ok());
     }
 
     #[test]
@@ -314,7 +335,8 @@ mod tests {
         {
             let s = svc(&dir);
             s.register_descriptors(vec![bool_desc("core.test.p", Scope::Global)]);
-            s.set(Scope::Global, "core.test.p", serde_json::json!(true)).unwrap();
+            s.set(Scope::Global, "core.test.p", serde_json::json!(true))
+                .unwrap();
         }
         let s2 = svc(&dir);
         s2.register_descriptors(vec![bool_desc("core.test.p", Scope::Global)]);
@@ -323,7 +345,10 @@ mod tests {
 
     fn uuid_v4() -> String {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         format!("{nanos:x}")
     }
 }

@@ -56,23 +56,49 @@ pub struct Dirs {
 impl Dirs {
     /// Resolve all application directories. `data_override` is used by tests
     /// and the standalone MCP server binary.
-    pub fn init(bundled: Option<PathBuf>, data_override: Option<PathBuf>) -> Result<Self, StorageError> {
+    pub fn init(
+        bundled: Option<PathBuf>,
+        data_override: Option<PathBuf>,
+    ) -> Result<Self, StorageError> {
         let (config, data, cache) = match &data_override {
             Some(base) => (base.join("config"), base.clone(), base.join("cache")),
             None => (
-                dirs::config_dir().ok_or_else(|| io_err("no config dir"))?.join("eigendesk"),
-                dirs::data_dir().ok_or_else(|| io_err("no data dir"))?.join("eigendesk"),
-                dirs::cache_dir().ok_or_else(|| io_err("no cache dir"))?.join("eigendesk"),
+                dirs::config_dir()
+                    .ok_or_else(|| io_err("no config dir"))?
+                    .join("eigendesk"),
+                dirs::data_dir()
+                    .ok_or_else(|| io_err("no data dir"))?
+                    .join("eigendesk"),
+                dirs::cache_dir()
+                    .ok_or_else(|| io_err("no cache dir"))?
+                    .join("eigendesk"),
             ),
         };
         let logs = data.join("logs");
         let plugins = data.join("plugins");
         let dev_plugins = data.join("dev-plugins");
         let registry = data.join("registry");
-        for dir in [&config, &data, &cache, &logs, &plugins, &dev_plugins, &registry] {
+        for dir in [
+            &config,
+            &data,
+            &cache,
+            &logs,
+            &plugins,
+            &dev_plugins,
+            &registry,
+        ] {
             std::fs::create_dir_all(dir)?;
         }
-        Ok(Self { config, data, cache, logs, plugins, dev_plugins, registry, bundled })
+        Ok(Self {
+            config,
+            data,
+            cache,
+            logs,
+            plugins,
+            dev_plugins,
+            registry,
+            bundled,
+        })
     }
 }
 
@@ -82,14 +108,24 @@ fn io_err(msg: &str) -> std::io::Error {
 
 /// Sanitize a plugin id (`publisher.name`) into a safe directory name.
 pub fn sanitize_plugin_id(id: &str) -> String {
-    id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect()
+    id.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 /// Validate a state key.
 pub fn valid_state_key(key: &str) -> bool {
     !key.is_empty()
         && key.len() <= 128
-        && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' || c == '/')
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' || c == '/')
         && !key.contains("..")
 }
 
@@ -116,7 +152,10 @@ impl PluginStateStore {
         } else {
             HashMap::new()
         };
-        Ok(Self { base, map: RwLock::new(map) }) 
+        Ok(Self {
+            base,
+            map: RwLock::new(map),
+        })
     }
 
     fn state_path(&self) -> PathBuf {
@@ -154,14 +193,20 @@ impl PluginStateStore {
         }
         let serialized = serde_json::to_string(&value)?;
         if serialized.len() as u64 > MAX_STATE_VALUE {
-            return Err(StorageError::QuotaExceeded(key.to_string(), MAX_STATE_VALUE));
+            return Err(StorageError::QuotaExceeded(
+                key.to_string(),
+                MAX_STATE_VALUE,
+            ));
         }
         let mut map = self.map.write().unwrap();
         map.insert(key.to_string(), value);
         let payload = serde_json::to_string_pretty(&*map)?;
         if (payload.len() as u64) + Self::dir_size(&self.base.join("data")) > PLUGIN_STATE_QUOTA {
             map.remove(key);
-            return Err(StorageError::QuotaExceeded(key.to_string(), PLUGIN_STATE_QUOTA));
+            return Err(StorageError::QuotaExceeded(
+                key.to_string(),
+                PLUGIN_STATE_QUOTA,
+            ));
         }
         let tmp = self.state_path().with_extension("tmp");
         std::fs::write(&tmp, payload)?;
@@ -198,7 +243,9 @@ mod tests {
         {
             let store = PluginStateStore::open(&root, "test.plugin").unwrap();
             store.set("counter", serde_json::json!(42)).unwrap();
-            store.set("nested/key", serde_json::json!({"a": 1})).unwrap();
+            store
+                .set("nested/key", serde_json::json!({"a": 1}))
+                .unwrap();
             assert_eq!(store.get("counter"), Some(serde_json::json!(42)));
         }
         let store = PluginStateStore::open(&root, "test.plugin").unwrap();
@@ -220,7 +267,10 @@ mod tests {
 
     #[test]
     fn plugin_ids_sanitized() {
-        assert_eq!(sanitize_plugin_id("yan-yi.slurm-monitor"), "yan-yi.slurm-monitor");
+        assert_eq!(
+            sanitize_plugin_id("yan-yi.slurm-monitor"),
+            "yan-yi.slurm-monitor"
+        );
         assert_eq!(sanitize_plugin_id("evil/../id"), "evil_.._id");
     }
 }

@@ -482,7 +482,7 @@ export interface DiagnosticsReport {
   version: string;
   platform: string;
   startup: StartupTiming;
-  plugins: Array<{ id: string; state: PluginState; failureCount: number }>;
+  plugins: { id: string; state: PluginState; failureCount: number }[];
   workspace: { id: string; root: string } | null;
   settings: Record<string, unknown>;
   timings: Record<string, number>;

@@ -61,7 +61,10 @@ fn is_known(name: &str) -> bool {
 
 /// Validate a permission name appearing in a manifest.
 pub fn validate_permission_name(name: &str) -> std::result::Result<(), String> {
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == ':' || c == '-') {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == ':' || c == '-')
+    {
         return Err(format!("permission `{name}` must be lowercase ascii"));
     }
     if !is_known(name) {
@@ -112,14 +115,14 @@ pub fn parse_declarations(declarations: &[PermissionDeclaration]) -> Result<Gran
         match decl {
             PermissionDeclaration::Flag(name) => {
                 validate_permission_name(name).map_err(PermissionError::InvalidDeclaration)?;
-                grants.permissions.insert(name.clone(), ScopeRestriction::default());
+                grants
+                    .permissions
+                    .insert(name.clone(), ScopeRestriction::default());
             }
             PermissionDeclaration::Scoped(map) => {
                 for (name, restriction) in map {
                     validate_permission_name(name).map_err(PermissionError::InvalidDeclaration)?;
-                    grants
-                        .permissions
-                        .insert(name.clone(), restriction.clone());
+                    grants.permissions.insert(name.clone(), restriction.clone());
                 }
             }
         }
@@ -140,11 +143,16 @@ impl Default for Evaluator {
 
 impl Evaluator {
     pub fn new() -> Self {
-        Self { grants: std::sync::RwLock::new(HashMap::new()) }
+        Self {
+            grants: std::sync::RwLock::new(HashMap::new()),
+        }
     }
 
     pub fn set_grants(&self, plugin_id: &str, grants: Grants) {
-        self.grants.write().unwrap().insert(plugin_id.to_string(), grants);
+        self.grants
+            .write()
+            .unwrap()
+            .insert(plugin_id.to_string(), grants);
     }
 
     pub fn remove_grants(&self, plugin_id: &str) {
@@ -167,7 +175,10 @@ impl Evaluator {
         if has {
             Ok(())
         } else {
-            Err(PermissionError::Missing { plugin: plugin_id.to_string(), permission: permission.to_string() })
+            Err(PermissionError::Missing {
+                plugin: plugin_id.to_string(),
+                permission: permission.to_string(),
+            })
         }
     }
 
@@ -180,7 +191,11 @@ impl Evaluator {
         path: &Path,
         workspace_root: Option<&Path>,
     ) -> Result<PathBuf> {
-        let permission = if write { "filesystem:write" } else { "filesystem:read" };
+        let permission = if write {
+            "filesystem:write"
+        } else {
+            "filesystem:read"
+        };
         let grants = self.grants.read().unwrap().get(plugin_id).cloned();
         let Some(grants) = grants else {
             return Err(PermissionError::Missing {
@@ -192,7 +207,11 @@ impl Evaluator {
         // `workspace:read` / `workspace:write` are aliases for filesystem
         // access scoped to the workspace root.
         let mut roots: Vec<PathBuf> = Vec::new();
-        let ws_perm = if write { "workspace:write" } else { "workspace:read" };
+        let ws_perm = if write {
+            "workspace:write"
+        } else {
+            "workspace:read"
+        };
         if grants.has(ws_perm) {
             if let Some(root) = workspace_root {
                 roots.push(root.to_path_buf());
@@ -211,7 +230,10 @@ impl Evaluator {
             }
         }
         if roots.is_empty() {
-            return Err(PermissionError::Missing { plugin: plugin_id.to_string(), permission: permission.to_string() });
+            return Err(PermissionError::Missing {
+                plugin: plugin_id.to_string(),
+                permission: permission.to_string(),
+            });
         }
 
         // Canonicalize the requested path so that `..` segments and symlinks
@@ -224,17 +246,26 @@ impl Evaluator {
                 return Ok(canonical);
             }
         }
-        Err(PermissionError::PathOutsideScope { plugin: plugin_id.to_string(), path: canonical_str.to_string() })
+        Err(PermissionError::PathOutsideScope {
+            plugin: plugin_id.to_string(),
+            path: canonical_str.to_string(),
+        })
     }
 
     /// Check a network access against the host allow-list.
     pub fn check_network(&self, plugin_id: &str, host: &str) -> Result<()> {
         let grants = self.grants.read().unwrap().get(plugin_id).cloned();
         let Some(grants) = grants else {
-            return Err(PermissionError::Missing { plugin: plugin_id.to_string(), permission: "network".to_string() });
+            return Err(PermissionError::Missing {
+                plugin: plugin_id.to_string(),
+                permission: "network".to_string(),
+            });
         };
         if !grants.has("network") {
-            return Err(PermissionError::Missing { plugin: plugin_id.to_string(), permission: "network".to_string() });
+            return Err(PermissionError::Missing {
+                plugin: plugin_id.to_string(),
+                permission: "network".to_string(),
+            });
         }
         if let Some(restriction) = grants.permissions.get("network") {
             if let Some(hosts) = &restriction.hosts {
@@ -329,7 +360,10 @@ pub fn resolve(path: &Path) -> std::io::Result<PathBuf> {
         let mut p = parent.to_path_buf();
         let mut tail = Vec::new();
         while !p.exists() {
-            match (p.parent().map(|x| x.to_path_buf()), p.file_name().map(|x| x.to_os_string())) {
+            match (
+                p.parent().map(|x| x.to_path_buf()),
+                p.file_name().map(|x| x.to_os_string()),
+            ) {
                 (Some(par), Some(name)) => {
                     tail.push(name);
                     p = par;
@@ -344,7 +378,10 @@ pub fn resolve(path: &Path) -> std::io::Result<PathBuf> {
         c
     };
     if !file.as_encoded_bytes().iter().all(|b| *b != 0) {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "NUL byte in path"));
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "NUL byte in path",
+        ));
     }
     canonical_parent.push(file);
     Ok(canonical_parent)
@@ -390,24 +427,42 @@ mod tests {
         let ws = Path::new("/tmp/ed-perm-ws");
         std::fs::create_dir_all(ws.join("Papers")).unwrap();
         std::fs::create_dir_all(ws.join("Secret")).unwrap();
-        assert!(ev.check_fs("a.b", false, &ws.join("Papers/paper.pdf"), Some(ws)).is_ok());
-        assert!(ev.check_fs("a.b", false, &ws.join("Secret/key.pem"), Some(ws)).is_err());
-        assert!(ev.check_fs("a.b", true, &ws.join("Papers/paper.pdf"), Some(ws)).is_err());
+        assert!(ev
+            .check_fs("a.b", false, &ws.join("Papers/paper.pdf"), Some(ws))
+            .is_ok());
+        assert!(ev
+            .check_fs("a.b", false, &ws.join("Secret/key.pem"), Some(ws))
+            .is_err());
+        assert!(ev
+            .check_fs("a.b", true, &ws.join("Papers/paper.pdf"), Some(ws))
+            .is_err());
     }
 
     #[test]
     fn workspace_alias_grants_root() {
-        let ev = evaluator_with("a.b", &[PermissionDeclaration::Flag("workspace:write".into())]);
+        let ev = evaluator_with(
+            "a.b",
+            &[PermissionDeclaration::Flag("workspace:write".into())],
+        );
         let ws = Path::new("/tmp/ed-perm-ws2");
         std::fs::create_dir_all(ws.join("Notes")).unwrap();
-        assert!(ev.check_fs("a.b", true, &ws.join("Notes/a.md"), Some(ws)).is_ok());
-        assert!(ev.check_fs("a.b", true, Path::new("/etc/passwd"), Some(ws)).is_err());
-        assert!(ev.check_fs("a.b", false, Path::new("/etc/passwd"), Some(ws)).is_err());
+        assert!(ev
+            .check_fs("a.b", true, &ws.join("Notes/a.md"), Some(ws))
+            .is_ok());
+        assert!(ev
+            .check_fs("a.b", true, Path::new("/etc/passwd"), Some(ws))
+            .is_err());
+        assert!(ev
+            .check_fs("a.b", false, Path::new("/etc/passwd"), Some(ws))
+            .is_err());
     }
 
     #[test]
     fn path_traversal_is_contained() {
-        let ev = evaluator_with("a.b", &[PermissionDeclaration::Flag("workspace:read".into())]);
+        let ev = evaluator_with(
+            "a.b",
+            &[PermissionDeclaration::Flag("workspace:read".into())],
+        );
         let ws = Path::new("/tmp/ed-perm-ws3");
         std::fs::create_dir_all(ws.join("docs")).unwrap();
         let evil = ws.join("docs/../../etc");
@@ -423,8 +478,13 @@ mod tests {
         std::fs::create_dir_all(base.join("outside")).unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink(base.join("outside"), ws.join("docs/escape")).unwrap();
-        let ev = evaluator_with("a.b", &[PermissionDeclaration::Flag("workspace:read".into())]);
-        assert!(ev.check_fs("a.b", false, &ws.join("docs/escape/x"), Some(&ws)).is_err());
+        let ev = evaluator_with(
+            "a.b",
+            &[PermissionDeclaration::Flag("workspace:read".into())],
+        );
+        assert!(ev
+            .check_fs("a.b", false, &ws.join("docs/escape/x"), Some(&ws))
+            .is_err());
     }
 
     #[test]

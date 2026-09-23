@@ -60,9 +60,11 @@ pub fn start(kernel: std::sync::Arc<Kernel>) {
                             match kernel.plugins.discover() {
                                 Ok(_) => {
                                     kernel.sync_registries();
-                                    kernel
-                                        .push
-                                        .push("plugin-state", None, serde_json::json!({ "reason": "fs-change" }));
+                                    kernel.push.push(
+                                        "plugin-state",
+                                        None,
+                                        serde_json::json!({ "reason": "fs-change" }),
+                                    );
                                     tracing::info!("plugin directories changed, rediscovered");
                                 }
                                 Err(e) => tracing::warn!(error = %e, "plugin rediscovery failed"),

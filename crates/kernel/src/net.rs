@@ -11,7 +11,7 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use serde_json::Value;
 
-use crate::{CallerCtx, Kernel, KernelError, KResult};
+use crate::{CallerCtx, KResult, Kernel, KernelError};
 
 pub struct NetService {
     client: reqwest::blocking::Client,
@@ -23,6 +23,12 @@ struct StreamHandle {
     abort: tokio::sync::watch::Sender<bool>,
 }
 
+impl Default for NetService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetService {
     pub fn new() -> Self {
         let client = reqwest::blocking::Client::builder()
@@ -30,7 +36,11 @@ impl NetService {
             .timeout(Duration::from_secs(120))
             .build()
             .expect("failed to build http client");
-        Self { client, streams: Mutex::new(HashMap::new()), next: AtomicU64::new(1) }
+        Self {
+            client,
+            streams: Mutex::new(HashMap::new()),
+            next: AtomicU64::new(1),
+        }
     }
 
     pub fn abort_all(&self) {
@@ -119,7 +129,9 @@ pub fn fetch(
         kernel.net.client.clone()
     };
     let builder = build_request(&client, method, url, headers, body)?;
-    let response = builder.send().map_err(|e| KernelError::Message(format!("request to `{url}` failed: {e}")))?;
+    let response = builder
+        .send()
+        .map_err(|e| KernelError::Message(format!("request to `{url}` failed: {e}")))?;
     let status = response.status().as_u16();
     let mut response_headers = serde_json::Map::new();
     for (name, value) in response.headers() {
@@ -128,7 +140,9 @@ pub fn fetch(
             Value::String(value.to_str().unwrap_or_default().to_string()),
         );
     }
-    let text = response.text().map_err(|e| KernelError::Message(format!("read body failed: {e}")))?;
+    let text = response
+        .text()
+        .map_err(|e| KernelError::Message(format!("read body failed: {e}")))?;
     Ok(serde_json::json!({
         "status": status,
         "headers": response_headers,
@@ -150,12 +164,10 @@ pub fn fetch_stream(
     let target_plugin = caller.plugin_id.clone();
     let stream_id = format!("net-{}", kernel.net.next.fetch_add(1, Ordering::SeqCst));
     let (abort_tx, mut abort_rx) = tokio::sync::watch::channel(false);
-    kernel
-        .net
-        .streams
-        .lock()
-        .unwrap()
-        .insert(stream_id.clone(), Arc::new(StreamHandle { abort: abort_tx }));
+    kernel.net.streams.lock().unwrap().insert(
+        stream_id.clone(),
+        Arc::new(StreamHandle { abort: abort_tx }),
+    );
 
     let url_owned = url.to_string();
     let method_owned = method.to_string();
@@ -170,11 +182,13 @@ pub fn fetch_stream(
             &kernel,
             &sid,
             target_plugin.as_deref(),
-            &url_owned,
-            &method_owned,
-            &headers_owned,
-            body_owned.as_deref(),
-            &mut abort_rx,
+            StreamRequest {
+                url: &url_owned,
+                method: &method_owned,
+                headers: &headers_owned,
+                body: body_owned.as_deref(),
+                abort_rx: &mut abort_rx,
+            },
         )
         .await;
         let _ = result;
@@ -184,24 +198,30 @@ pub fn fetch_stream(
     Ok(serde_json::json!({ "streamId": stream_id }))
 }
 
+/// The request half of a streaming fetch, grouped to keep `run_stream`
+/// within clippy's argument budget.
+struct StreamRequest<'a> {
+    url: &'a str,
+    method: &'a str,
+    headers: &'a Value,
+    body: Option<&'a str>,
+    abort_rx: &'a mut tokio::sync::watch::Receiver<bool>,
+}
+
 async fn run_stream(
     kernel: &Arc<Kernel>,
     stream_id: &str,
     target_plugin: Option<&str>,
-    url: &str,
-    method: &str,
-    headers: &Value,
-    body: Option<&str>,
-    abort_rx: &mut tokio::sync::watch::Receiver<bool>,
+    req: StreamRequest<'_>,
 ) -> KResult<()> {
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(15))
         .build()
         .map_err(|e| KernelError::Message(format!("client build failed: {e}")))?;
-    let method = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
-        .map_err(|_| KernelError::Message(format!("unsupported http method `{method}`")))?;
-    let mut builder = client.request(method, url);
-    if let Some(map) = headers.as_object() {
+    let method = reqwest::Method::from_bytes(req.method.to_uppercase().as_bytes())
+        .map_err(|_| KernelError::Message(format!("unsupported http method `{}`", req.method)))?;
+    let mut builder = client.request(method, req.url);
+    if let Some(map) = req.headers.as_object() {
         for (k, v) in map {
             let value = match v {
                 Value::String(s) => s.clone(),
@@ -210,13 +230,13 @@ async fn run_stream(
             builder = builder.header(k, value);
         }
     }
-    if let Some(body) = body {
+    if let Some(body) = req.body {
         builder = builder.body(body.to_string());
     }
     let response = builder
         .send()
         .await
-        .map_err(|e| KernelError::Message(format!("request to `{url}` failed: {e}")))?;
+        .map_err(|e| KernelError::Message(format!("request to `{}` failed: {e}", req.url)))?;
     let status = response.status().as_u16();
     let mut stream = response.bytes_stream();
 
@@ -255,12 +275,15 @@ async fn run_stream(
             serde_json::json!({ "streamId": stream_id, "event": event, "data": data }),
         );
     };
-    push("net-start", serde_json::json!({ "streamId": stream_id, "status": status }));
+    push(
+        "net-start",
+        serde_json::json!({ "streamId": stream_id, "status": status }),
+    );
 
     loop {
         tokio::select! {
-            _ = abort_rx.changed() => {
-                if *abort_rx.borrow() {
+            _ = req.abort_rx.changed() => {
+                if *req.abort_rx.borrow() {
                     push("net-abort", serde_json::json!({ "streamId": stream_id }));
                     return Ok(());
                 }

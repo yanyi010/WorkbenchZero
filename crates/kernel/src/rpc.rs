@@ -9,9 +9,14 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use crate::fs as fs_cap;
-use crate::{CallerCtx, Kernel, KResult, KernelError};
+use crate::{CallerCtx, KResult, Kernel, KernelError};
 
-pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: CallerCtx) -> KResult<Value> {
+pub fn dispatch(
+    kernel: &Arc<Kernel>,
+    method: &str,
+    params: Value,
+    caller: CallerCtx,
+) -> KResult<Value> {
     match method {
         // -- app -------------------------------------------------------------
         "app.issueToken" => Ok(json!(kernel.issue_token()?)),
@@ -30,10 +35,10 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         "app.diagnostics" => Ok(kernel.diagnostics.snapshot()),
         "app.exportDiagnostics" => {
             let snapshot = kernel.diagnostics.snapshot();
-            let path = kernel
-                .dirs
-                .data
-                .join(format!("diagnostics-{}.json", chrono::Utc::now().format("%Y%m%d-%H%M%S")));
+            let path = kernel.dirs.data.join(format!(
+                "diagnostics-{}.json",
+                chrono::Utc::now().format("%Y%m%d-%H%M%S")
+            ));
             std::fs::write(&path, serde_json::to_string_pretty(&snapshot)?)
                 .map_err(|e| KernelError::Message(format!("cannot write diagnostics: {e}")))?;
             Ok(json!({ "path": path.display().to_string() }))
@@ -62,7 +67,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 check_flag(kernel, &caller, "system:open")?;
             }
             if !url.starts_with("https://") && !url.starts_with("http://") {
-                return Err(KernelError::Message("only http(s) urls can be opened".into()));
+                return Err(KernelError::Message(
+                    "only http(s) urls can be opened".into(),
+                ));
             }
             open_url(url);
             Ok(Value::Null)
@@ -123,7 +130,8 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         "workspace.remove" => {
             let id = str_param(&params, "id")?;
             let mut mgr = kernel.workspaces.lock().unwrap();
-            mgr.remove(id).map_err(|e| KernelError::Message(e.to_string()))?;
+            mgr.remove(id)
+                .map_err(|e| KernelError::Message(e.to_string()))?;
             Ok(Value::Null)
         }
 
@@ -181,17 +189,14 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "commands.unregister" => {
             let id = str_param(&params, "id")?;
-            match &caller.plugin_id {
-                Some(plugin_id) => {
-                    if let Some(def) = kernel.commands.get(id) {
-                        if def.plugin_id.as_deref() != Some(plugin_id.as_str()) {
-                            return Err(KernelError::Permission(format!(
-                                "plugin `{plugin_id}` cannot unregister command `{id}`"
-                            )));
-                        }
+            if let Some(plugin_id) = &caller.plugin_id {
+                if let Some(def) = kernel.commands.get(id) {
+                    if def.plugin_id.as_deref() != Some(plugin_id.as_str()) {
+                        return Err(KernelError::Permission(format!(
+                            "plugin `{plugin_id}` cannot unregister command `{id}`"
+                        )));
                     }
                 }
-                None => {}
             }
             kernel.commands.unregister(id);
             Ok(Value::Null)
@@ -233,7 +238,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                         .install_trusted(id)
                         .map_err(|e| KernelError::Message(e.to_string()))?;
                     kernel.sync_registries();
-                    kernel.events.emit("plugin.installed", None, json!({ "id": id }));
+                    kernel
+                        .events
+                        .emit("plugin.installed", None, json!({ "id": id }));
                     return Ok(json!(info));
                 }
             }
@@ -242,13 +249,17 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .load_catalog()
                 .into_iter()
                 .find(|c| c.id == id)
-                .ok_or_else(|| KernelError::Message(format!("plugin `{id}` not found in catalog")))?;
+                .ok_or_else(|| {
+                    KernelError::Message(format!("plugin `{id}` not found in catalog"))
+                })?;
             let info = kernel
                 .plugins
                 .install_from(&entry.package_path)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.installed", None, json!({ "id": id }));
+            kernel
+                .events
+                .emit("plugin.installed", None, json!({ "id": id }));
             Ok(json!(info))
         }
         "plugins.installFromPath" => {
@@ -258,7 +269,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .install_from(path)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.installed", None, json!({ "id": info.manifest.id }));
+            kernel
+                .events
+                .emit("plugin.installed", None, json!({ "id": info.manifest.id }));
             Ok(json!(info))
         }
         "plugins.approvePermissions" => {
@@ -278,7 +291,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .enable(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.enabled", None, json!({ "id": id }));
+            kernel
+                .events
+                .emit("plugin.enabled", None, json!({ "id": id }));
             Ok(json!(info))
         }
         "plugins.disable" => {
@@ -288,7 +303,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .disable(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.disabled", None, json!({ "id": id }));
+            kernel
+                .events
+                .emit("plugin.disabled", None, json!({ "id": id }));
             Ok(json!(info))
         }
         "plugins.uninstall" => {
@@ -298,7 +315,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .uninstall(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.uninstalled", None, json!({ "id": id }));
+            kernel
+                .events
+                .emit("plugin.uninstalled", None, json!({ "id": id }));
             Ok(Value::Null)
         }
         "plugins.setPinned" => {
@@ -327,12 +346,22 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .plugins
                 .record_failure(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
-            let limit = kernel.settings.get("core.plugin.autoDisableAfterFailures").as_u64().unwrap_or(5) as u32;
+            let limit = kernel
+                .settings
+                .get("core.plugin.autoDisableAfterFailures")
+                .as_u64()
+                .unwrap_or(5) as u32;
             tracing::warn!(plugin = id, count, %reason, "plugin failure reported");
             if count >= limit {
-                let _ = kernel.plugins.set_state(id, eigendesk_plugin_runtime::PluginState::Disabled);
+                let _ = kernel
+                    .plugins
+                    .set_state(id, eigendesk_plugin_runtime::PluginState::Disabled);
                 kernel.sync_registries();
-                kernel.events.emit("plugin.auto-disabled", None, json!({ "id": id, "failures": count }));
+                kernel.events.emit(
+                    "plugin.auto-disabled",
+                    None,
+                    json!({ "id": id, "failures": count }),
+                );
                 crate::notify::push_notification(
                     kernel,
                     "Plugin disabled",
@@ -369,7 +398,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "plugin.log" => {
             let Some(plugin_id) = &caller.plugin_id else {
-                return Err(KernelError::Unauthorized("plugin.log is plugin-only".into()));
+                return Err(KernelError::Unauthorized(
+                    "plugin.log is plugin-only".into(),
+                ));
             };
             let level = params["level"].as_str().unwrap_or("info");
             let message = params["message"].as_str().unwrap_or("");
@@ -409,7 +440,10 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .get(id)
                 .ok_or_else(|| KernelError::Message(format!("plugin `{id}` not installed")))?;
             if rec.pinned {
-                return Err(KernelError::Message(format!("plugin `{id}` is pinned to version {}", rec.manifest.version)));
+                return Err(KernelError::Message(format!(
+                    "plugin `{id}` is pinned to version {}",
+                    rec.manifest.version
+                )));
             }
             let entry = kernel
                 .plugins
@@ -425,7 +459,11 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .install_from(&entry.package_path)
                 .map_err(|e| KernelError::Message(e.to_string()))?;
             kernel.sync_registries();
-            kernel.events.emit("plugin.updated", None, json!({ "id": id, "version": entry.version }));
+            kernel.events.emit(
+                "plugin.updated",
+                None,
+                json!({ "id": id, "version": entry.version }),
+            );
             Ok(json!({ "updated": true, "info": info }))
         }
         "plugins.installPack" => {
@@ -439,10 +477,17 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let mut results = vec![];
             for plugin_id in &pack.plugins {
                 let outcome = (|| -> KResult<Value> {
-                    dispatch(kernel, "plugins.install", json!({ "id": plugin_id }), CallerCtx { plugin_id: None })?;
+                    dispatch(
+                        kernel,
+                        "plugins.install",
+                        json!({ "id": plugin_id }),
+                        CallerCtx { plugin_id: None },
+                    )?;
                     Ok(json!({ "id": plugin_id, "ok": true }))
                 })()
-                .unwrap_or_else(|e| json!({ "id": plugin_id, "ok": false, "error": e.to_string() }));
+                .unwrap_or_else(
+                    |e| json!({ "id": plugin_id, "ok": false, "error": e.to_string() }),
+                );
                 results.push(outcome);
             }
             Ok(json!(results))
@@ -451,7 +496,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         // -- artifacts ---------------------------------------------------------------
         "artifacts.upsert" => {
             let Some(plugin_id) = caller.plugin_id.clone() else {
-                return Err(KernelError::Unauthorized("artifacts.upsert is plugin-only".into()));
+                return Err(KernelError::Unauthorized(
+                    "artifacts.upsert is plugin-only".into(),
+                ));
             };
             let records = params["artifacts"].as_array().cloned().unwrap_or_default();
             let allowed_schemes = allowed_artifact_schemes(kernel, &plugin_id);
@@ -466,8 +513,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 }
                 record["pluginId"] = json!(plugin_id);
                 typed.push(
-                    serde_json::from_value(record)
-                        .map_err(|e| KernelError::Message(format!("invalid artifact record: {e}")))?,
+                    serde_json::from_value(record).map_err(|e| {
+                        KernelError::Message(format!("invalid artifact record: {e}"))
+                    })?,
                 );
             }
             let ws = kernel.require_workspace()?;
@@ -480,7 +528,7 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "artifacts.remove" => {
             let uri = str_param(&params, "uri")?;
-            require_artifact_owner(kernel, &caller, &uri)?;
+            require_artifact_owner(kernel, &caller, uri)?;
             let ws = kernel.require_workspace()?;
             let removed = crate::db::with_conn(&ws, |conn| {
                 crate::db::artifacts(conn)
@@ -491,7 +539,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "artifacts.removeByPlugin" => {
             let Some(plugin_id) = &caller.plugin_id else {
-                return Err(KernelError::Unauthorized("artifacts.removeByPlugin is plugin-only".into()));
+                return Err(KernelError::Unauthorized(
+                    "artifacts.removeByPlugin is plugin-only".into(),
+                ));
             };
             let ws = kernel.require_workspace()?;
             let removed = crate::db::with_conn(&ws, |conn| {
@@ -545,15 +595,18 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         // -- search --------------------------------------------------------------------
         "search.upsert" => {
             let Some(plugin_id) = caller.plugin_id.clone() else {
-                return Err(KernelError::Unauthorized("search.upsert is plugin-only".into()));
+                return Err(KernelError::Unauthorized(
+                    "search.upsert is plugin-only".into(),
+                ));
             };
             let docs = params["documents"].as_array().cloned().unwrap_or_default();
             let mut typed = Vec::with_capacity(docs.len());
             for mut doc in docs {
                 doc["pluginId"] = json!(plugin_id);
                 typed.push(
-                    serde_json::from_value(doc)
-                        .map_err(|e| KernelError::Message(format!("invalid index document: {e}")))?,
+                    serde_json::from_value(doc).map_err(|e| {
+                        KernelError::Message(format!("invalid index document: {e}"))
+                    })?,
                 );
             }
             let ws = kernel.require_workspace()?;
@@ -566,7 +619,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         }
         "search.removeByPlugin" => {
             let Some(plugin_id) = &caller.plugin_id else {
-                return Err(KernelError::Unauthorized("search.removeByPlugin is plugin-only".into()));
+                return Err(KernelError::Unauthorized(
+                    "search.removeByPlugin is plugin-only".into(),
+                ));
             };
             let ws = kernel.require_workspace()?;
             let removed = crate::db::with_conn(&ws, |conn| {
@@ -664,7 +719,10 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let canonical = fs_cap::check(kernel, &caller, false, &path)?;
             match params["encoding"].as_str().unwrap_or("utf8") {
                 "base64" => fs_cap::read_base64(&canonical),
-                _ => fs_cap::read_text(&canonical, params["maxSize"].as_u64().unwrap_or(READ_FILE_DEFAULT)),
+                _ => fs_cap::read_text(
+                    &canonical,
+                    params["maxSize"].as_u64().unwrap_or(READ_FILE_DEFAULT),
+                ),
             }
         }
         "fs.writeFile" => {
@@ -690,7 +748,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                 .create(true)
                 .append(true)
                 .open(&canonical)
-                .map_err(|e| KernelError::Message(format!("cannot open `{}`: {e}", canonical.display())))?;
+                .map_err(|e| {
+                    KernelError::Message(format!("cannot open `{}`: {e}", canonical.display()))
+                })?;
             file.write_all(content.as_bytes())
                 .map_err(|e| KernelError::Message(format!("append failed: {e}")))?;
             Ok(Value::Null)
@@ -701,12 +761,15 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let from_c = fs_cap::check(kernel, &caller, false, &from)?;
             let to_c = fs_cap::check(kernel, &caller, true, &to)?;
             if let Some(parent) = to_c.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| KernelError::Message(format!("cannot create `{}`: {e}", parent.display())))?;
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    KernelError::Message(format!("cannot create `{}`: {e}", parent.display()))
+                })?;
             }
             if std::fs::rename(&from_c, &to_c).is_err() {
                 fs_cap::copy_path(&from_c, &to_c)?;
-                let ws_root = kernel.current_workspace().map(|ws| ws.workspace.root().to_path_buf());
+                let ws_root = kernel
+                    .current_workspace()
+                    .map(|ws| ws.workspace.root().to_path_buf());
                 fs_cap::delete(&from_c, true, ws_root.as_deref())?;
             }
             Ok(Value::Null)
@@ -722,15 +785,22 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         "fs.delete" => {
             let path = kernel.resolve_path(str_param(&params, "path")?)?;
             let canonical = fs_cap::check(kernel, &caller, true, &path)?;
-            let ws_root = kernel.current_workspace().map(|ws| ws.workspace.root().to_path_buf());
-            fs_cap::delete(&canonical, params["recursive"].as_bool().unwrap_or(false), ws_root.as_deref())?;
+            let ws_root = kernel
+                .current_workspace()
+                .map(|ws| ws.workspace.root().to_path_buf());
+            fs_cap::delete(
+                &canonical,
+                params["recursive"].as_bool().unwrap_or(false),
+                ws_root.as_deref(),
+            )?;
             Ok(Value::Null)
         }
         "fs.mkdir" => {
             let path = kernel.resolve_path(str_param(&params, "path")?)?;
             let canonical = fs_cap::check(kernel, &caller, true, &path)?;
-            std::fs::create_dir_all(&canonical)
-                .map_err(|e| KernelError::Message(format!("mkdir `{}` failed: {e}", canonical.display())))?;
+            std::fs::create_dir_all(&canonical).map_err(|e| {
+                KernelError::Message(format!("mkdir `{}` failed: {e}", canonical.display()))
+            })?;
             Ok(Value::Null)
         }
 
@@ -831,7 +901,8 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                     .pty
                     .list()
                     .into_iter()
-                    .filter(|s| pty_owner(kernel, s["sessionId"].as_str().unwrap_or("")) == Some(plugin_id.clone()))
+                    .filter(|s| pty_owner(kernel, s["sessionId"].as_str().unwrap_or(""))
+                        == Some(plugin_id.clone()))
                     .collect::<Vec<_>>()));
             }
             Ok(json!(kernel.pty.list()))
@@ -845,7 +916,13 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let title = str_param(&params, "title")?;
             let body = params["body"].as_str().unwrap_or_default();
             let actions = params["actions"].as_array().cloned().unwrap_or_default();
-            crate::notify::push_notification(kernel, title, body, caller.plugin_id.clone(), actions);
+            crate::notify::push_notification(
+                kernel,
+                title,
+                body,
+                caller.plugin_id.clone(),
+                actions,
+            );
             Ok(Value::Null)
         }
         "notify.list" => Ok(json!(*kernel.notifications.lock().unwrap())),
@@ -865,10 +942,13 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
         "ai.listTools" => Ok(json!(crate::AI_TOOLS.list())),
         "ai.callTool" => {
             let name = str_param(&params, "name")?;
-            let args = params.get("args").cloned().unwrap_or(serde_json::Value::Null);
-            let tool = crate::AI_TOOLS
-                .tool(&name)
-                .ok_or_else(|| KernelError::Message(format!("ai tool `{name}` is not registered")))?;
+            let args = params
+                .get("args")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let tool = crate::AI_TOOLS.tool(name).ok_or_else(|| {
+                KernelError::Message(format!("ai tool `{name}` is not registered"))
+            })?;
             let owner = tool.plugin_id.clone();
             let (request_id, rx) = crate::PENDING_TOOL_CALLS.begin(&owner);
             kernel.push.push_to_plugin(
@@ -887,7 +967,11 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
                         Ok(result.get("result").cloned().unwrap_or(Value::Null))
                     } else {
                         Err(KernelError::Message(
-                            result.get("error").and_then(|v| v.as_str()).unwrap_or("tool failed").to_string(),
+                            result
+                                .get("error")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("tool failed")
+                                .to_string(),
                         ))
                     }
                 }
@@ -901,7 +985,10 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let request_id = params["requestId"].as_u64().unwrap_or(0);
             let ok = params["ok"].as_bool().unwrap_or(false);
             let result = params.get("result").cloned().unwrap_or(Value::Null);
-            let error = params.get("error").and_then(|v| v.as_str()).unwrap_or("tool failed");
+            let error = params
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("tool failed");
             let payload = if ok {
                 json!({ "ok": true, "result": result })
             } else {
@@ -925,7 +1012,10 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             let name = str_param(&params, "name")?;
             let command = str_param(&params, "command")?;
             let args = params["args"].as_array().cloned().unwrap_or_default();
-            let args: Vec<String> = args.iter().filter_map(|a| a.as_str().map(|s| s.to_string())).collect();
+            let args: Vec<String> = args
+                .iter()
+                .filter_map(|a| a.as_str().map(|s| s.to_string()))
+                .collect();
             kernel.mcp.add_server(name, command, &args)?;
             Ok(Value::Null)
         }
@@ -946,7 +1036,9 @@ pub fn dispatch(kernel: &Arc<Kernel>, method: &str, params: Value, caller: Calle
             crate::mcp::check_permission(kernel, &caller)?;
             let name = str_param(&params, "name")?;
             let result = kernel.mcp.connect(name)?;
-            kernel.push.push("mcp-status", None, json!({ "server": name }));
+            kernel
+                .push
+                .push("mcp-status", None, json!({ "server": name }));
             Ok(result)
         }
         "mcp.listTools" => {
@@ -986,7 +1078,10 @@ fn parse_scope(s: &str) -> KResult<eigendesk_settings::Scope> {
     }
 }
 
-fn parse_command_def(v: &Value, plugin_id: Option<String>) -> KResult<eigendesk_commands::CommandDef> {
+fn parse_command_def(
+    v: &Value,
+    plugin_id: Option<String>,
+) -> KResult<eigendesk_commands::CommandDef> {
     let mut def: eigendesk_commands::CommandDef = serde_json::from_value(v.clone())
         .map_err(|e| KernelError::Message(format!("invalid command definition: {e}")))?;
     def.plugin_id = plugin_id;
@@ -997,15 +1092,16 @@ fn parse_command_def(v: &Value, plugin_id: Option<String>) -> KResult<eigendesk_
 }
 
 fn require_plugin(caller: &CallerCtx) -> KResult<String> {
-    caller
-        .plugin_id
-        .clone()
-        .ok_or(KernelError::Unauthorized("this method is only available to plugins".into()))
+    caller.plugin_id.clone().ok_or(KernelError::Unauthorized(
+        "this method is only available to plugins".into(),
+    ))
 }
 
 fn app_only(caller: &CallerCtx) -> KResult<()> {
     if caller.plugin_id.is_some() {
-        return Err(KernelError::Unauthorized("this method is restricted to the application shell".into()));
+        return Err(KernelError::Unauthorized(
+            "this method is restricted to the application shell".into(),
+        ));
     }
     Ok(())
 }
@@ -1089,7 +1185,9 @@ fn require_artifact_owner(kernel: &Kernel, caller: &CallerCtx, uri: &str) -> KRe
 
 fn semver_gt(a: &str, b: &str) -> bool {
     let parse = |s: &str| -> Vec<u64> {
-        s.split('.').map(|p| p.parse::<u64>().unwrap_or(0)).collect()
+        s.split('.')
+            .map(|p| p.parse::<u64>().unwrap_or(0))
+            .collect()
     };
     let (av, bv) = (parse(a), parse(b));
     for i in 0..3 {
@@ -1103,7 +1201,11 @@ fn semver_gt(a: &str, b: &str) -> bool {
 }
 
 fn reveal(path: &std::path::Path) {
-    let target = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+    let target = if path.is_dir() {
+        path
+    } else {
+        path.parent().unwrap_or(path)
+    };
     #[cfg(target_os = "linux")]
     let result = std::process::Command::new("xdg-open").arg(target).spawn();
     #[cfg(target_os = "macos")]
@@ -1121,7 +1223,9 @@ fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]
-    let result = std::process::Command::new("cmd").args(["/c", "start", url]).spawn();
+    let result = std::process::Command::new("cmd")
+        .args(["/c", "start", url])
+        .spawn();
     if let Err(e) = result {
         tracing::warn!(url, error = %e, "failed to open url");
     }

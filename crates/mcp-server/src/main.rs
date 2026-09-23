@@ -92,7 +92,9 @@ impl Server {
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
-                    if entry.file_type().is_file() && entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                    if entry.file_type().is_file()
+                        && entry.path().extension().map(|e| e == "md").unwrap_or(false)
+                    {
                         let rel = entry
                             .path()
                             .strip_prefix(&self.workspace)
@@ -113,7 +115,10 @@ impl Server {
                 Ok(json!({ "memos": memos }))
             }
             TOOL_MEMO_READ => {
-                let name = args.get("name").and_then(|v| v.as_str()).ok_or("`name` is required")?;
+                let name = args
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .ok_or("`name` is required")?;
                 // Contain path traversal: only a bare file name is accepted.
                 if name.contains('/') || name.contains('\\') || name.contains("..") {
                     return Err("`name` must be a bare file name".into());
@@ -181,7 +186,9 @@ impl Server {
             TOOL_TASKS_LIST => {
                 let mut tasks = self.load_tasks()?;
                 if let Some(status) = args.get("status").and_then(|v| v.as_str()) {
-                    tasks.retain(|t| t.get("status").and_then(|v| v.as_str()).unwrap_or("todo") == status);
+                    tasks.retain(|t| {
+                        t.get("status").and_then(|v| v.as_str()).unwrap_or("todo") == status
+                    });
                 }
                 Ok(json!({ "tasks": tasks }))
             }
@@ -264,7 +271,11 @@ fn main() {
             }
             "--allow" => {
                 if let Some(list) = args.next() {
-                    allow = list.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+                    allow = list
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
                 }
             }
             "--help" => {
@@ -272,7 +283,14 @@ fn main() {
                 eprintln!();
                 eprintln!("Usage: eigendesk-mcp --workspace <dir> [--allow tool1,tool2,...]");
                 eprintln!();
-                eprintln!("Tools: {}", tool_definitions().iter().filter_map(|t| t.get("name").and_then(|n| n.as_str())).collect::<Vec<_>>().join(", "));
+                eprintln!(
+                    "Tools: {}",
+                    tool_definitions()
+                        .iter()
+                        .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
                 eprintln!();
                 eprintln!("Alternatively configure allows in ~/.config/eigendesk/mcp-server.json:");
                 eprintln!("  {{\"allow\": [\"memo.list\", \"tasks.today\"]}}");
@@ -309,7 +327,10 @@ fn main() {
         }
     }
 
-    let server = Server { workspace: workspace.canonicalize().unwrap_or(workspace), allow };
+    let server = Server {
+        workspace: workspace.canonicalize().unwrap_or(workspace),
+        allow,
+    };
 
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
@@ -322,7 +343,10 @@ fn main() {
         let Ok(msg) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
-        let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or_default();
+        let method = msg
+            .get("method")
+            .and_then(|m| m.as_str())
+            .unwrap_or_default();
         let id = msg.get("id").cloned();
         let is_request = id.is_some();
         let result = match method {
@@ -364,7 +388,9 @@ fn main() {
         }
         let response = match result {
             Ok(result) => json!({ "jsonrpc": "2.0", "id": id.unwrap(), "result": result }),
-            Err(e) => json!({ "jsonrpc": "2.0", "id": id.unwrap(), "error": { "code": -32601, "message": e } }),
+            Err(e) => {
+                json!({ "jsonrpc": "2.0", "id": id.unwrap(), "error": { "code": -32601, "message": e } })
+            }
         };
         let _ = serde_json::to_writer(&mut out, &response);
         let _ = out.write_all(b"\n");
@@ -379,7 +405,10 @@ fn dirs_config_path() -> PathBuf {
         }
     }
     if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home).join(".config").join("eigendesk").join("mcp-server.json");
+        return PathBuf::from(home)
+            .join(".config")
+            .join("eigendesk")
+            .join("mcp-server.json");
     }
     PathBuf::from("eigendesk-mcp.json")
 }

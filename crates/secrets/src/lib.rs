@@ -53,7 +53,9 @@ fn namespaced(plugin_id: &str, key: &str) -> String {
 fn valid_key(key: &str) -> bool {
     !key.is_empty()
         && key.len() <= 128
-        && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
 }
 
 impl SecretsService {
@@ -69,7 +71,11 @@ impl SecretsService {
                 (Backend::LocalFile, Some(path), map)
             }
         };
-        Self { backend, fallback_path, fallback: RwLock::new(fallback) }
+        Self {
+            backend,
+            fallback_path,
+            fallback: RwLock::new(fallback),
+        }
     }
 
     fn probe_backend() -> Backend {
@@ -272,7 +278,14 @@ mod tests {
     use super::*;
 
     fn tmpdir() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("ed-secrets-{}-{}", std::process::id(), std::time::SystemTime::now().elapsed().unwrap().subsec_nanos()));
+        let dir = std::env::temp_dir().join(format!(
+            "ed-secrets-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .elapsed()
+                .unwrap()
+                .subsec_nanos()
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -281,7 +294,10 @@ mod tests {
     fn owner_scoped_roundtrip() {
         let svc = SecretsService::new(tmpdir());
         svc.set("a.plugin", "api_key", "s3cret").unwrap();
-        assert_eq!(svc.get("a.plugin", "api_key").unwrap(), Some("s3cret".to_string()));
+        assert_eq!(
+            svc.get("a.plugin", "api_key").unwrap(),
+            Some("s3cret".to_string())
+        );
         // Owner scoping: another plugin cannot read it through the service.
         assert_eq!(svc.get("b.plugin", "api_key").unwrap(), None);
         assert!(svc.delete("a.plugin", "api_key").unwrap());

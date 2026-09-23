@@ -128,7 +128,10 @@ mod tests {
     fn duplicate_rejected() {
         let r = CommandRegistry::new();
         r.register(def("a.b")).unwrap();
-        assert!(matches!(r.register(def("a.b")), Err(RegistryError::Duplicate(_))));
+        assert!(matches!(
+            r.register(def("a.b")),
+            Err(RegistryError::Duplicate(_))
+        ));
     }
 
     #[test]

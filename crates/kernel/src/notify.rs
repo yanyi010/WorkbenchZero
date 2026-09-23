@@ -47,7 +47,10 @@ pub fn push_notification(
             Some(NotificationAction {
                 id: a.get("id")?.as_str()?.to_string(),
                 title: a.get("title")?.as_str()?.to_string(),
-                command: a.get("command").and_then(|c| c.as_str()).map(|s| s.to_string()),
+                command: a
+                    .get("command")
+                    .and_then(|c| c.as_str())
+                    .map(|s| s.to_string()),
                 args: a.get("args").cloned(),
             })
         })
@@ -68,5 +71,9 @@ pub fn push_notification(
             history.drain(..len - HISTORY_CAP);
         }
     }
-    kernel.push.push("notification", None, serde_json::to_value(&record).unwrap_or(Value::Null));
+    kernel.push.push(
+        "notification",
+        None,
+        serde_json::to_value(&record).unwrap_or(Value::Null),
+    );
 }

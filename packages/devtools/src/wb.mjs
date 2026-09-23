@@ -10,16 +10,8 @@
  *   wb plugin validate [dir]    manifest + permission checks
  */
 import { build, context } from 'esbuild';
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  cp,
-  mkdir,
-  readFile,
-  readdir,
-  stat,
-  writeFile,
-} from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -214,7 +206,7 @@ async function devPlugin(dir) {
   // directory snapshot, not ten racing ones.
   const rebuild = () => {
     clearTimeout(timer);
-    timer = setTimeout(deploy, 150);
+    timer = setTimeout(() => void deploy(), 150);
   };
   for (const watchDir of ['src', '.']) {
     const abs = path.resolve(dir, watchDir);
@@ -244,7 +236,7 @@ const CRC_TABLE = (() => {
 
 function crc32(bytes) {
   let c = 0xffffffff;
-  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 

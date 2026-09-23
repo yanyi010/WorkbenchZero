@@ -38,7 +38,11 @@ impl PushHub {
                 }
             })
             .expect("failed to spawn push flush thread");
-        Self { queue, sink, started: AtomicBool::new(true) }
+        Self {
+            queue,
+            sink,
+            started: AtomicBool::new(true),
+        }
     }
 
     pub fn push(&self, topic: &str, target: Option<String>, payload: serde_json::Value) {
@@ -49,7 +53,11 @@ impl PushHub {
             queue.drain(..drop);
             tracing::warn!(dropped = drop, "push queue overflow");
         }
-        queue.push(PushMessage { topic: topic.to_string(), target, payload });
+        queue.push(PushMessage {
+            topic: topic.to_string(),
+            target,
+            payload,
+        });
     }
 
     /// Push a message addressed to one plugin iframe.
@@ -73,6 +81,6 @@ fn drain(queue: &SharedQueue) -> Vec<PushMessage> {
     let mut q = queue.lock().unwrap();
     let take = q.len().min(MAX_BATCH);
     let at = q.len() - take;
-    let batch = q.split_off(at);
-    batch
+
+    q.split_off(at)
 }

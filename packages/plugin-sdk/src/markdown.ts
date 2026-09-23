@@ -9,7 +9,7 @@ import DOMPurify from 'dompurify';
 marked.setOptions({ gfm: true, breaks: true });
 
 export function renderMarkdown(source: string): HTMLElement {
-  const raw = marked.parse(source, { async: false }) as string;
+  const raw = marked.parse(source, { async: false });
   const html = DOMPurify.sanitize(raw, {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['style', 'form', 'input', 'iframe', 'script'],

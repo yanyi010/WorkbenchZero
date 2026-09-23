@@ -13,9 +13,18 @@ pub struct StartupTracker {
     phases: Vec<(String, f64)>,
 }
 
+impl Default for StartupTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StartupTracker {
     pub fn new() -> Self {
-        Self { start: Instant::now(), phases: Vec::new() }
+        Self {
+            start: Instant::now(),
+            phases: Vec::new(),
+        }
     }
 
     pub fn mark(&mut self, name: &str) {

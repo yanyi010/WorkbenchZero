@@ -91,12 +91,12 @@ describe('keybindings (spec §74)', () => {
   ];
 
   it('defaults come from the command registry', () => {
-    const bindings = resolveBindings(commands as never, {});
+    const bindings = resolveBindings(commands, {});
     expect(bindings.find((b) => b.accel === 'Ctrl+K')?.commandId).toBe('core.showPalette');
   });
 
   it('user overrides win over defaults', () => {
-    const bindings = resolveBindings(commands as never, { 'core.showPalette': 'Ctrl+Shift+K' });
+    const bindings = resolveBindings(commands, { 'core.showPalette': 'Ctrl+Shift+K' });
     expect(bindings.find((b) => b.accel === 'Ctrl+Shift+K')?.commandId).toBe('core.showPalette');
     expect(bindings.find((b) => b.accel === 'Ctrl+K')).toBeUndefined();
   });

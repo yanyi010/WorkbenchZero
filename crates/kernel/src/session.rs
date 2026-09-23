@@ -16,7 +16,11 @@ impl SessionKv {
     }
 
     pub fn get(&self, plugin_id: &str, key: &str) -> Option<serde_json::Value> {
-        self.data.read().unwrap().get(&(plugin_id.to_string(), key.to_string())).cloned()
+        self.data
+            .read()
+            .unwrap()
+            .get(&(plugin_id.to_string(), key.to_string()))
+            .cloned()
     }
 
     pub fn set(&self, plugin_id: &str, key: &str, value: serde_json::Value) {
@@ -27,7 +31,11 @@ impl SessionKv {
     }
 
     pub fn delete(&self, plugin_id: &str, key: &str) -> bool {
-        self.data.write().unwrap().remove(&(plugin_id.to_string(), key.to_string())).is_some()
+        self.data
+            .write()
+            .unwrap()
+            .remove(&(plugin_id.to_string(), key.to_string()))
+            .is_some()
     }
 
     pub fn keys(&self, plugin_id: &str) -> Vec<String> {

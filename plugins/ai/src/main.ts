@@ -14,7 +14,7 @@ import type { PluginContext } from '@eigendesk/plugin-sdk';
 interface ChatMsg {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string | null;
-  tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>;
+  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
 }
 
@@ -123,10 +123,10 @@ function parseSse(delta: string, ev: StreamEvents): void {
       const payload = line.slice(5).trim();
       if (!payload || payload === '[DONE]') continue;
       let parsed: {
-        choices?: Array<{
-          delta?: { content?: string; tool_calls?: Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }> };
+        choices?: {
+          delta?: { content?: string; tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[] };
           finish_reason?: string | null;
-        }>;
+        }[];
         error?: { message?: string };
       };
       try {

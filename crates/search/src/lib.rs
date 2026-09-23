@@ -78,7 +78,10 @@ impl<'a> SearchIndex<'a> {
             return Err(SearchError::InvalidDocument(doc.uri.clone()));
         }
         if doc.title.len() > 512 {
-            return Err(SearchError::InvalidDocument(format!("title too long: {}", doc.uri)));
+            return Err(SearchError::InvalidDocument(format!(
+                "title too long: {}",
+                doc.uri
+            )));
         }
         Ok(())
     }
@@ -88,13 +91,21 @@ impl<'a> SearchIndex<'a> {
         {
             let mut del_fts = tx.prepare("DELETE FROM search_fts WHERE uri = ?1")?;
             let mut del_doc = tx.prepare("DELETE FROM search_docs WHERE uri = ?1")?;
-            let mut ins_fts = tx.prepare("INSERT INTO search_fts (uri, title, body, tags) VALUES (?1, ?2, ?3, ?4)")?;
-            let mut ins_doc = tx.prepare("INSERT INTO search_docs (uri, plugin_id) VALUES (?1, ?2)")?;
+            let mut ins_fts = tx.prepare(
+                "INSERT INTO search_fts (uri, title, body, tags) VALUES (?1, ?2, ?3, ?4)",
+            )?;
+            let mut ins_doc =
+                tx.prepare("INSERT INTO search_docs (uri, plugin_id) VALUES (?1, ?2)")?;
             for doc in docs {
                 Self::validate(doc)?;
                 del_fts.execute([&doc.uri])?;
                 del_doc.execute([&doc.uri])?;
-                ins_fts.execute(rusqlite::params![doc.uri, doc.title, doc.body, doc.tags.join(" ")])?;
+                ins_fts.execute(rusqlite::params![
+                    doc.uri,
+                    doc.title,
+                    doc.body,
+                    doc.tags.join(" ")
+                ])?;
                 ins_doc.execute(rusqlite::params![doc.uri, doc.plugin_id])?;
             }
         }
@@ -112,7 +123,9 @@ impl<'a> SearchIndex<'a> {
 
     pub fn remove_by_plugin(&self, plugin_id: &str) -> Result<usize, SearchError> {
         let uris: Vec<String> = {
-            let mut stmt = self.conn.prepare("SELECT uri FROM search_docs WHERE plugin_id = ?1")?;
+            let mut stmt = self
+                .conn
+                .prepare("SELECT uri FROM search_docs WHERE plugin_id = ?1")?;
             let rows = stmt.query_map([plugin_id], |r| r.get::<_, String>(0))?;
             rows.flatten().collect()
         };
@@ -177,14 +190,22 @@ impl<'a> SearchIndex<'a> {
             let worst = hits.last().map(|h| h.score).unwrap_or(best);
             let span = (best - worst).abs();
             for hit in &mut hits {
-                hit.score = if span > f64::EPSILON { 1.0 - (best - hit.score).abs() / span } else { 1.0 };
+                hit.score = if span > f64::EPSILON {
+                    1.0 - (best - hit.score).abs() / span
+                } else {
+                    1.0
+                };
             }
         }
         Ok(hits)
     }
 
     pub fn count(&self) -> Result<u64, SearchError> {
-        Ok(self.conn.query_row("SELECT COUNT(*) FROM search_docs", [], |r| r.get::<_, i64>(0))? as u64)
+        Ok(self
+            .conn
+            .query_row("SELECT COUNT(*) FROM search_docs", [], |r| {
+                r.get::<_, i64>(0)
+            })? as u64)
     }
 }
 
@@ -213,7 +234,8 @@ mod tests {
     #[test]
     fn fts5_available() {
         with_idx(|conn, _| {
-            conn.execute_batch("CREATE VIRTUAL TABLE t USING fts5(x)").unwrap();
+            conn.execute_batch("CREATE VIRTUAL TABLE t USING fts5(x)")
+                .unwrap();
         });
     }
 
@@ -221,7 +243,11 @@ mod tests {
     fn upsert_and_query() {
         with_idx(|_, idx| {
             idx.upsert_many(&[
-                doc("memo://1", "Berry convergence notes", "check Berry convergence carefully"),
+                doc(
+                    "memo://1",
+                    "Berry convergence notes",
+                    "check Berry convergence carefully",
+                ),
                 doc("memo://2", "Grocery list", "milk and eggs"),
             ])
             .unwrap();
@@ -235,7 +261,8 @@ mod tests {
     #[test]
     fn prefix_query_matches_partial() {
         with_idx(|_, idx| {
-            idx.upsert_many(&[doc("memo://1", "Convergence checklist", "body")]).unwrap();
+            idx.upsert_many(&[doc("memo://1", "Convergence checklist", "body")])
+                .unwrap();
             assert_eq!(idx.query("conver", 10).unwrap().len(), 1);
         });
     }
@@ -245,7 +272,14 @@ mod tests {
         with_idx(|_, idx| {
             idx.upsert_many(&[
                 doc("memo://1", "a", "a"),
-                IndexDocument { uri: "task://1".into(), title: "t".into(), body: "b".into(), tags: vec![], metadata: None, plugin_id: "eigendesk.tasks".into() },
+                IndexDocument {
+                    uri: "task://1".into(),
+                    title: "t".into(),
+                    body: "b".into(),
+                    tags: vec![],
+                    metadata: None,
+                    plugin_id: "eigendesk.tasks".into(),
+                },
             ])
             .unwrap();
             assert_eq!(idx.remove_by_plugin("eigendesk.memo").unwrap(), 1);
@@ -257,8 +291,10 @@ mod tests {
     #[test]
     fn upsert_replaces_document() {
         with_idx(|_, idx| {
-            idx.upsert_many(&[doc("memo://1", "old title", "old body")]).unwrap();
-            idx.upsert_many(&[doc("memo://1", "new title", "new body")]).unwrap();
+            idx.upsert_many(&[doc("memo://1", "old title", "old body")])
+                .unwrap();
+            idx.upsert_many(&[doc("memo://1", "new title", "new body")])
+                .unwrap();
             let hits = idx.query("new", 10).unwrap();
             assert_eq!(hits.len(), 1);
             assert_eq!(idx.count().unwrap(), 1);

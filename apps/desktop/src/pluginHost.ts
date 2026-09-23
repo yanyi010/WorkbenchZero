@@ -207,7 +207,7 @@ class PluginHost {
               ok: false,
               error: {
                 code: err?.code ?? 'kernel/error',
-                message: err?.message ?? String(err),
+                message: err?.message ?? 'kernel error',
               },
             }),
           );
@@ -289,7 +289,7 @@ export const pluginHost = new PluginHost();
 
 /** Collect the enabled plugins that should auto-activate at startup. */
 export function startupActivationPlugins(
-  plugins: Array<{ manifest: PluginManifest; state: string }>,
+  plugins: { manifest: PluginManifest; state: string }[],
 ): string[] {
   const out: string[] = [];
   for (const p of plugins) {

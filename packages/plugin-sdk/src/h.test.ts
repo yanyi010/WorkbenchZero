@@ -21,7 +21,7 @@ describe('h()', () => {
     expect(el.title).toBe('hello');
     expect(el.hidden).toBe(true);
     expect(el.dataset.kind).toBe('badge');
-    expect((el as HTMLElement).style.color).toBe('red');
+    expect((el).style.color).toBe('red');
   });
 
   it('wires event listeners', () => {

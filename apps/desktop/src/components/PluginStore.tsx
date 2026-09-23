@@ -82,17 +82,17 @@ export function PluginStore() {
                   busy={busy === `Enable ${p.manifest.id}` || busy === `Disable ${p.manifest.id}`}
                   onApprove={() => setApproving(p)}
                   onEnable={() =>
-                    run(`Enable ${p.manifest.id}`, () =>
+                    void run(`Enable ${p.manifest.id}`, () =>
                       rpc(Methods.plugins.enable, { id: p.manifest.id }),
                     )
                   }
                   onDisable={() =>
-                    run(`Disable ${p.manifest.id}`, () =>
+                    void run(`Disable ${p.manifest.id}`, () =>
                       rpc(Methods.plugins.disable, { id: p.manifest.id }),
                     )
                   }
                   onUninstall={() =>
-                    run(`Uninstall ${p.manifest.id}`, () =>
+                    void run(`Uninstall ${p.manifest.id}`, () =>
                       rpc(Methods.plugins.uninstall, { id: p.manifest.id }),
                     )
                   }
@@ -150,7 +150,7 @@ export function PluginStore() {
                     variant="primary"
                     disabled={busy === `Install pack ${pack.id}`}
                     onClick={() =>
-                      run(`Install pack ${pack.id}`, () =>
+                      void run(`Install pack ${pack.id}`, () =>
                         rpc(Methods.plugins.installPack, { packId: pack.id }),
                       )
                     }
@@ -214,11 +214,11 @@ function PluginRow({
   onDisable: () => void;
   onUninstall: () => void;
 }) {
-  const [logs, setLogs] = useState<Array<{ ts: string; level: string; message: string }> | null>(
+  const [logs, setLogs] = useState<{ ts: string; level: string; message: string }[] | null>(
     null,
   );
   const loadLogs = (id: string) =>
-    rpc<Array<{ ts: string; level: string; message: string }>>(Methods.plugins.logs, { id })
+    rpc<{ ts: string; level: string; message: string }[]>(Methods.plugins.logs, { id })
       .then(setLogs)
       .catch(() => setLogs([]));
   const p = plugin;
