@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 640" role="img" aria-label="Keyboard-first command palette">
+  <defs>
+    <filter id="pShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <style>
+      .t { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+      .m { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+  </defs>
+  <rect width="1560" height="640" fill="#0C0D10"/>
+
+  <!-- dimmed shell behind -->
+  <g opacity="0.45">
+    <rect x="64" y="56" width="1432" height="528" rx="12" fill="#15171C"/>
+    <rect x="64" y="56" width="1432" height="40" fill="#121317"/>
+    <rect x="64" y="96" width="220" height="488" fill="#16181E"/>
+    <rect x="284" y="96" width="1212" height="34" fill="#121317"/>
+    <text class="t" x="308" y="328" font-size="22" font-weight="600" fill="#F2F3F5">Reading list</text>
+  </g>
+
+  <!-- palette -->
+  <rect x="470" y="120" width="640" height="296" rx="14" fill="#000" opacity="0.55" filter="url(#pShadow)"/>
+  <rect x="460" y="110" width="640" height="296" rx="14" fill="#181B20" stroke="#2A2E37"/>
+  <rect x="460" y="110" width="640" height="56" rx="14" fill="#1C2027"/>
+  <rect x="460" y="138" width="640" height="28" fill="#1C2027"/>
+  <text class="t" x="488" y="146" font-size="15" fill="#69707C">›</text>
+  <text class="t" x="506" y="147" font-size="15" fill="#ECEDEF">memo ne</text>
+  <rect x="571" y="130" width="2" height="18" fill="#5E8CFF"/>
+
+  <!-- rows -->
+  <rect x="460" y="166" width="640" height="1" fill="#23262E"/>
+  <g class="t" font-size="13">
+    <rect x="460" y="167" width="640" height="44" fill="#1E2A46"/>
+    <circle cx="490" cy="189" r="4" fill="#5E8CFF"/>
+    <text x="508" y="193" fill="#EDEEF0">Memo: New memo</text>
+    <text x="1000" y="193" fill="#7AA2FF" text-anchor="end">zero.memo</text>
+    <rect x="1022" y="175" width="56" height="28" rx="6" stroke="#39404B" fill="#121418"/>
+    <text class="m" x="1050" y="194" font-size="12" fill="#C9CDD4" text-anchor="middle">⏎</text>
+
+    <circle cx="490" cy="233" r="4" fill="#69707C"/>
+    <text x="508" y="237" fill="#B9BEC6">Memo: New memo… takes the line after the command</text>
+    <text x="1000" y="237" fill="#4B515C" text-anchor="end">zero.memo</text>
+
+    <circle cx="490" cy="277" r="4" fill="#69707C"/>
+    <text x="508" y="281" fill="#B9BEC6">Capture: Route to memo provider</text>
+    <text x="1000" y="281" fill="#4B515C" text-anchor="end">zero.memo</text>
+
+    <circle cx="490" cy="321" r="4" fill="#69707C"/>
+    <text x="508" y="325" fill="#B9BEC6">Tasks: New task</text>
+    <text x="1000" y="325" fill="#4B515C" text-anchor="end">zero.tasks</text>
+
+    <circle cx="490" cy="365" r="4" fill="#69707C"/>
+    <text x="508" y="369" fill="#B9BEC6">Show keyboard shortcuts</text>
+    <text x="1000" y="369" fill="#4B515C" text-anchor="end">shell</text>
+    <rect x="1022" y="351" width="56" height="28" rx="6" stroke="#39404B" fill="#121418"/>
+    <text class="m" x="1050" y="370" font-size="11.5" fill="#9BA1A9" text-anchor="middle">⌘K</text>
+  </g>
+
+  <!-- captions -->
+  <text class="t" x="460" y="470" font-size="13.5" font-weight="600" fill="#ECEDEF">⌘K palette · Alt+Space capture · ⌘P search</text>
+  <text class="m" x="460" y="496" font-size="12" fill="#69707C">every command a plugin can register — declarative opensView, or handled in its logic frame</text>
+  <text class="m" x="460" y="584" font-size="11.5" fill="#4B515C">words you type stay on your disk — no telemetry, ever</text>
+</svg>

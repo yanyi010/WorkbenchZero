@@ -31,6 +31,11 @@ const docsRenders = [
   ['banner.svg', 'banner.png', 2560, 1280],
   ['social-preview.svg', 'social-preview.png', 1280, 640],
   ['hero.svg', 'hero.png', 1600, 1000],
+  ['features.svg', 'features.png', 1560, 400],
+  ['architecture.svg', 'architecture.png', 1600, 820],
+  ['sandbox.svg', 'sandbox.png', 1560, 480],
+  ['data-safety.svg', 'data-safety.png', 1560, 560],
+  ['palette.svg', 'palette.png', 1560, 640],
 ];
 
 /** Tauri icon renders (Linux bundles use these; .icns/.ico kept prebuilt). */
