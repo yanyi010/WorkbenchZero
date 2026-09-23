@@ -345,6 +345,15 @@ export interface PluginContext {
     current(): Promise<{ id: string; name: string; root: string } | null>;
     reveal(path: string): Promise<void>;
   };
+  settings: {
+    /** Effective value: workspace → global → descriptor default → null. */
+    get<T = unknown>(key: string): Promise<T | null>;
+    /**
+     * Write a setting. The kernel only lets plugins write keys under
+     * their own id prefix (`<pluginId>.…`).
+     */
+    set(key: string, value: unknown): Promise<void>;
+  };
   ai: {
     /** Register an AI tool the Quick Ask / chat agent can call. */
     registerTool(tool: {
@@ -357,6 +366,15 @@ export interface PluginContext {
     onToolCall(
       fn: (name: string, args: Record<string, unknown>) => Promise<unknown>,
     ): () => void;
+    /** All AI tools registered kernel-side (any plugin may ask). */
+    listTools(): Promise<
+      Array<{ name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }>
+    >;
+    /**
+     * Invoke a registered tool (routed to its owning plugin by the
+     * kernel). Resolves with `{ ok: true, result }` or rejects.
+     */
+    callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
   };
   mcp: {
     listTools(): Promise<McpToolInfo[]>;
@@ -614,12 +632,25 @@ function buildContext(): PluginContext {
       current: () => bridge.call('workspace.current', {}),
       reveal: (path) => bridge.call('system.reveal', { path }).then(() => undefined),
     },
+    settings: {
+      get: async <T,>(key: string): Promise<T | null> => {
+        const v = await bridge.call<unknown>('settings.get', { key });
+        return (v === null || v === undefined ? null : v) as T | null;
+      },
+      set: (key, value) => bridge.call('settings.set', { key, value }).then(() => undefined),
+    },
     ai: {
       registerTool: (tool) => bridge.call('ai.registerTool', { tool }).then(() => undefined),
       onToolCall(fn) {
         toolCallHandlers.add(fn);
         return () => toolCallHandlers.delete(fn);
       },
+      listTools: () =>
+        bridge.call<Array<{ name: string; description: string; parameters: unknown; highRisk: boolean; pluginId: string }>>(
+          'ai.listTools',
+          {},
+        ),
+      callTool: (name, args) => bridge.call('ai.callTool', { name, args }),
     },
     mcp: {
       listTools: () => bridge.call<McpToolInfo[]>('mcp.listTools', {}),

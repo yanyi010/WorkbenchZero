@@ -1,0 +1,71 @@
+/* Terminal plugin — xterm fills the view; chrome stays minimal. */
+
+body {
+  margin: 0;
+  font-family: var(--ed-font-mono);
+  background: var(--ed-background);
+}
+
+.term-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.term-tabs {
+  display: flex;
+  gap: var(--ed-space-1);
+  padding: var(--ed-space-1) var(--ed-space-2);
+  border-bottom: 1px solid var(--ed-border);
+  background: var(--ed-background-alt);
+  align-items: center;
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-text-sm);
+}
+
+.term-tab {
+  padding: 2px 10px;
+  border-radius: var(--ed-radius-md);
+  border: 1px solid var(--ed-border);
+  cursor: pointer;
+  color: var(--ed-foreground);
+  background: var(--ed-background);
+  user-select: none;
+}
+
+.term-tab[data-active='true'] {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent-soft);
+}
+
+.term-tab span.close {
+  margin-left: 6px;
+  color: var(--ed-muted);
+}
+
+.term-tab span.close:hover {
+  color: var(--ed-danger);
+}
+
+.term-new {
+  border: 1px dashed var(--ed-border-strong);
+  border-radius: var(--ed-radius-md);
+  padding: 2px 8px;
+  cursor: pointer;
+  color: var(--ed-muted);
+}
+
+.term-new:hover {
+  color: var(--ed-foreground);
+}
+
+.term-host {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+  background: var(--ed-background-sink);
+}
+
+.term-host .xterm {
+  height: 100%;
+}

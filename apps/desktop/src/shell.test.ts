@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCaptureProvider } from './captureRouting';
-import { eventToAccel, resolveBindings } from './keybindings';
+import { resolveBindings } from './keybindings';
 import { fuzzyScore } from './components/Palette';
 
 const memo = {

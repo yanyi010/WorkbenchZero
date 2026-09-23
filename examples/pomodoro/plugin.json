@@ -1,0 +1,36 @@
+{
+  "id": "community.pomodoro",
+  "name": "Pomodoro",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "A 25-minute focus timer with desktop notifications.",
+  "publisher": "community",
+  "trust": "community",
+  "permissions": ["notification"],
+  "activationEvents": ["onView:community.pomodoro.main", "onStartup"],
+  "contributes": {
+    "commands": [
+      {
+        "id": "community.pomodoro.start",
+        "title": "Pomodoro: Start Focus",
+        "category": "Pomodoro"
+      },
+      {
+        "id": "community.pomodoro.reset",
+        "title": "Pomodoro: Reset",
+        "category": "Pomodoro"
+      }
+    ],
+    "views": [{ "id": "community.pomodoro.main", "title": "Pomodoro", "icon": "🍅", "location": "main" }],
+    "widgets": [{ "id": "community.pomodoro.timer", "title": "Pomodoro", "minWidth": 160, "minHeight": 120 }],
+    "settings": [
+      {
+        "key": "community.pomodoro.focusMinutes",
+        "type": "number",
+        "title": "Focus minutes",
+        "default": 25
+      }
+    ],
+    "searchProviders": []
+  }
+}

@@ -8,10 +8,13 @@
       "@eigendesk/protocol": ["packages/protocol/src/index.ts"],
       "@eigendesk/plugin-sdk": ["packages/plugin-sdk/src/index.ts"],
       "@eigendesk/plugin-sdk/h": ["packages/plugin-sdk/src/h.ts"],
+      "@eigendesk/plugin-sdk/markdown": ["packages/plugin-sdk/src/markdown.ts"],
       "@eigendesk/ui-kit": ["packages/ui-kit/src/index.tsx"]
     }
   },
   "include": [
+    "plugins/*/src/**/*.ts",
+    "examples/*/src/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/*/src/**/*.tsx",
     "apps/desktop/src/**/*.ts",

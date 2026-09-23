@@ -1,0 +1,28 @@
+{
+  "id": "community.hello-plugin",
+  "name": "Hello Plugin",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "The smallest useful plugin: one command, one view, one search provider.",
+  "publisher": "community",
+  "trust": "community",
+  "permissions": ["notification"],
+  "activationEvents": [
+    "onCommand:community.hello-plugin.hello",
+    "onView:community.hello-plugin.main",
+    "onStartup"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "community.hello-plugin.hello",
+        "title": "Hello: Greet",
+        "category": "Hello",
+        "takesArgs": true
+      }
+    ],
+    "views": [{ "id": "community.hello-plugin.main", "title": "Hello", "icon": "👋", "location": "main" }],
+    "searchProviders": [{ "id": "community.hello-plugin", "title": "Hello notes" }],
+    "settings": []
+  }
+}

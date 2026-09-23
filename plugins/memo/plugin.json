@@ -1,0 +1,46 @@
+{
+  "id": "eigendesk.memo",
+  "name": "Memo",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "Fast local memo capture. Markdown memos live in your workspace.",
+  "publisher": "eigendesk",
+  "trust": "trusted",
+  "permissions": ["workspace:read", "workspace:write", "notification"],
+  "activationEvents": [
+    "onCommand:eigendesk.memo.new",
+    "onView:eigendesk.memo.main",
+    "onStartup",
+    "onEvent:workspace.opened",
+    "onEvent:artifact.open",
+    "onEvent:memo.createFromText"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "eigendesk.memo.new",
+        "title": "New Memo",
+        "category": "Memo",
+        "takesArgs": true,
+        "keybinding": "Ctrl+Alt+M"
+      },
+      { "id": "eigendesk.memo.open", "title": "Open Memo", "category": "Memo", "opensView": "eigendesk.memo.main" }
+    ],
+    "views": [{ "id": "eigendesk.memo.main", "title": "Memos", "icon": "📝", "location": "main" }],
+    "widgets": [{ "id": "eigendesk.memo.recent", "title": "Recent Memos", "minWidth": 220, "minHeight": 140 }],
+    "settings": [
+      {
+        "key": "eigendesk.memo.directory",
+        "type": "string",
+        "title": "Memos directory",
+        "description": "Folder inside the workspace where memos are stored.",
+        "default": "Memos"
+      }
+    ],
+    "searchProviders": [{ "id": "eigendesk.memo", "title": "Memos" }],
+    "captureProviders": [
+      { "id": "eigendesk.memo.default", "title": "Memo", "prefixes": [], "priority": 100, "command": "eigendesk.memo.new" }
+    ],
+    "artifactTypes": [{ "type": "memo", "title": "Memo" }]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "eigendesk.terminal",
+  "name": "Terminal",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "Embedded terminal backed by the kernel PTY service.",
+  "publisher": "eigendesk",
+  "trust": "trusted",
+  "permissions": ["process:spawn"],
+  "activationEvents": ["onView:eigendesk.terminal.main", "onEvent:workspace.opened"],
+  "contributes": {
+    "commands": [
+      {
+        "id": "eigendesk.terminal.open",
+        "title": "Open Terminal",
+        "category": "Terminal",
+        "opensView": "eigendesk.terminal.main"
+      }
+    ],
+    "views": [{ "id": "eigendesk.terminal.main", "title": "Terminal", "icon": "▶", "location": "main" }],
+    "settings": [
+      {
+        "key": "eigendesk.terminal.shell",
+        "type": "string",
+        "title": "Shell",
+        "description": "Shell executable. Empty = auto-detect ($SHELL, then bash).",
+        "default": ""
+      },
+      {
+        "key": "eigendesk.terminal.fontSize",
+        "type": "number",
+        "title": "Font size (px)",
+        "default": 13
+      }
+    ],
+    "searchProviders": [],
+    "statusItems": [{ "id": "eigendesk.terminal.sessions", "title": "Terminal sessions", "command": "eigendesk.terminal.open" }]
+  }
+}

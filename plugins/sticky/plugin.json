@@ -1,0 +1,44 @@
+{
+  "id": "eigendesk.sticky",
+  "name": "Sticky",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "Small persistent cards with Markdown and checklists.",
+  "publisher": "eigendesk",
+  "trust": "trusted",
+  "permissions": ["workspace:read", "workspace:write"],
+  "activationEvents": [
+    "onCommand:eigendesk.sticky.new",
+    "onView:eigendesk.sticky.main",
+    "onEvent:workspace.opened",
+    "onEvent:sticky.createFromText"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "eigendesk.sticky.new",
+        "title": "New Sticky",
+        "category": "Sticky",
+        "takesArgs": true
+      },
+      {
+        "id": "eigendesk.sticky.convertToMemo",
+        "title": "Convert Sticky to Memo",
+        "category": "Sticky",
+        "takesArgs": true
+      },
+      {
+        "id": "eigendesk.sticky.convertToTask",
+        "title": "Convert Sticky to Task",
+        "category": "Sticky",
+        "takesArgs": true
+      }
+    ],
+    "views": [{ "id": "eigendesk.sticky.main", "title": "Stickies", "icon": "🗂", "location": "main" }],
+    "settings": [],
+    "searchProviders": [{ "id": "eigendesk.sticky", "title": "Stickies" }],
+    "captureProviders": [
+      { "id": "eigendesk.sticky.quick", "title": "Sticky", "prefixes": ["/s"], "priority": 80, "command": "eigendesk.sticky.new" }
+    ]
+  }
+}

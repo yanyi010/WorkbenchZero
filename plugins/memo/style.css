@@ -1,0 +1,225 @@
+/* Memo plugin styles — design tokens only. */
+
+body {
+  margin: 0;
+  font-family: var(--ed-font-ui);
+  font-size: var(--ed-text-md);
+  color: var(--ed-foreground);
+  background: var(--ed-background);
+}
+
+.memo-app {
+  display: flex;
+  height: 100vh;
+}
+
+.memo-list {
+  width: 280px;
+  border-right: 1px solid var(--ed-border);
+  overflow-y: auto;
+  background: var(--ed-background-alt);
+  display: flex;
+  flex-direction: column;
+}
+
+.memo-list header {
+  padding: var(--ed-space-2) var(--ed-space-3);
+  border-bottom: 1px solid var(--ed-border);
+  display: flex;
+  gap: var(--ed-space-1);
+}
+
+.memo-list input {
+  flex: 1;
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-md);
+  background: var(--ed-background);
+  color: var(--ed-foreground);
+}
+
+.memo-item {
+  padding: var(--ed-space-2) var(--ed-space-3);
+  border-bottom: 1px solid var(--ed-border);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.memo-item:hover {
+  background: var(--ed-accent-soft);
+}
+
+.memo-item[data-active='true'] {
+  border-left-color: var(--ed-accent);
+  background: var(--ed-accent-soft);
+}
+
+.memo-item .title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-item .meta {
+  font-size: var(--ed-text-xs);
+  color: var(--ed-muted);
+}
+
+.memo-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.memo-editor .toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ed-space-2);
+  padding: var(--ed-space-2) var(--ed-space-3);
+  border-bottom: 1px solid var(--ed-border);
+}
+
+.memo-editor .toolbar input {
+  flex: 1;
+  font: inherit;
+  font-size: var(--ed-text-lg);
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--ed-foreground);
+  outline: none;
+}
+
+.memo-editor button {
+  font: inherit;
+  padding: 3px 10px;
+  border-radius: var(--ed-radius-md);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-background-alt);
+  color: var(--ed-foreground);
+  cursor: pointer;
+}
+
+.memo-editor button[data-variant='primary'] {
+  background: var(--ed-accent);
+  border-color: var(--ed-accent);
+  color: var(--ed-accent-foreground);
+}
+
+.memo-editor button[data-variant='danger'] {
+  background: transparent;
+  border-color: var(--ed-danger);
+  color: var(--ed-danger);
+}
+
+.memo-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.memo-body textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: var(--ed-space-3);
+  font-family: var(--ed-font-mono);
+  font-size: var(--ed-text-md);
+  line-height: 1.55;
+  background: var(--ed-background);
+  color: var(--ed-foreground);
+}
+
+.memo-body .preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ed-space-3);
+  border-left: 1px solid var(--ed-border);
+  user-select: text;
+}
+
+.memo-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: var(--ed-muted);
+}
+
+.memo-widget {
+  padding: var(--ed-space-3);
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.memo-widget h4 {
+  margin: 0 0 var(--ed-space-2);
+}
+
+.memo-widget ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.memo-widget li {
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ed-text-sm);
+  padding: 4px 6px;
+  border-radius: var(--ed-radius-sm);
+}
+
+.memo-widget li:hover {
+  background: var(--ed-accent-soft);
+}
+
+.ed-markdown {
+  line-height: 1.6;
+}
+.ed-markdown pre {
+  background: var(--ed-background-sink);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius-md);
+  padding: var(--ed-space-2);
+  overflow: auto;
+  font-family: var(--ed-font-mono);
+  font-size: var(--ed-text-sm);
+}
+.ed-markdown code {
+  font-family: var(--ed-font-mono);
+  font-size: 0.92em;
+  background: var(--ed-background-sink);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.ed-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+.ed-markdown blockquote {
+  border-left: 3px solid var(--ed-border-strong);
+  margin-left: 0;
+  padding-left: var(--ed-space-3);
+  color: var(--ed-muted);
+}
+.ed-markdown img {
+  max-width: 100%;
+}
+.ed-markdown table {
+  border-collapse: collapse;
+}
+.ed-markdown th,
+.ed-markdown td {
+  border: 1px solid var(--ed-border);
+  padding: 4px 8px;
+}

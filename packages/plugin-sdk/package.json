@@ -7,9 +7,12 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./h": "./src/h.ts"
+    "./h": "./src/h.ts",
+    "./markdown": "./src/markdown.ts"
   },
   "dependencies": {
-    "@eigendesk/protocol": "0.1.0"
+    "@eigendesk/protocol": "0.1.0",
+    "marked": "^15.0.4",
+    "dompurify": "^3.2.3"
   }
 }

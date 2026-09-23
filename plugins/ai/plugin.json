@@ -1,0 +1,61 @@
+{
+  "id": "eigendesk.ai",
+  "name": "Quick Ask",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "AI assistant over any OpenAI-compatible endpoint (including local ones).",
+  "publisher": "eigendesk",
+  "trust": "trusted",
+  "permissions": ["network", "ai:invoke", "secrets:read", "clipboard:write"],
+  "activationEvents": [
+    "onCommand:eigendesk.ai.quickAsk",
+    "onCommand:eigendesk.ai.open",
+    "onView:eigendesk.ai.chat",
+    "onEvent:ai.quickAskText"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "eigendesk.ai.quickAsk",
+        "title": "Quick Ask",
+        "category": "AI",
+        "takesArgs": true
+      },
+      { "id": "eigendesk.ai.open", "title": "Open Chat", "category": "AI", "opensView": "eigendesk.ai.chat" }
+    ],
+    "views": [{ "id": "eigendesk.ai.chat", "title": "Chat", "icon": "✦", "location": "main" }],
+    "settings": [
+      {
+        "key": "eigendesk.ai.baseUrl",
+        "type": "string",
+        "title": "Base URL",
+        "description": "OpenAI-compatible endpoint, e.g. http://localhost:1234/v1",
+        "default": ""
+      },
+      {
+        "key": "eigendesk.ai.model",
+        "type": "string",
+        "title": "Model ID",
+        "description": "Manual entry — no built-in model list (spec §48).",
+        "default": ""
+      },
+      {
+        "key": "eigendesk.ai.apiKeySecret",
+        "type": "string",
+        "title": "API key secret name",
+        "description": "Name under which the API key is stored in the secrets vault. Leave empty for local endpoints.",
+        "default": "eigendesk.ai.apiKey"
+      },
+      {
+        "key": "eigendesk.ai.maxTokens",
+        "type": "number",
+        "title": "Max response tokens",
+        "default": 2048
+      }
+    ],
+    "searchProviders": [],
+    "captureProviders": [
+      { "id": "eigendesk.ai.ask", "title": "Quick Ask", "prefixes": ["?"], "priority": 95, "command": "eigendesk.ai.quickAsk" }
+    ]
+  }
+}

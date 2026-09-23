@@ -1,0 +1,33 @@
+{
+  "id": "community.quickcalc",
+  "name": "QuickCalc",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "description": "Type = in Quick Capture to evaluate arithmetic. No permissions at all.",
+  "publisher": "community",
+  "trust": "community",
+  "permissions": [],
+  "activationEvents": ["onCommand:community.quickcalc.eval"],
+  "contributes": {
+    "commands": [
+      {
+        "id": "community.quickcalc.eval",
+        "title": "QuickCalc: Evaluate",
+        "category": "QuickCalc",
+        "takesArgs": true
+      }
+    ],
+    "views": [],
+    "searchProviders": [],
+    "captureProviders": [
+      {
+        "id": "community.quickcalc.calc",
+        "title": "Calculator",
+        "prefixes": ["="],
+        "priority": 50,
+        "command": "community.quickcalc.eval"
+      }
+    ],
+    "settings": []
+  }
+}
