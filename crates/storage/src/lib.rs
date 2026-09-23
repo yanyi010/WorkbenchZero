@@ -19,6 +19,7 @@ use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use wz_common::{atomic_write_str, load_json, JsonLoad, RwLockRecover};
 
 #[derive(Debug, Error)]
 pub enum StorageError {
@@ -142,15 +143,13 @@ impl PluginStateStore {
         let base = workspace_state_root.join(sanitize_plugin_id(plugin_id));
         std::fs::create_dir_all(base.join("data"))?;
         let state_path = base.join("state.json");
-        let map = if state_path.exists() {
-            let raw = std::fs::read_to_string(&state_path)?;
-            if raw.trim().is_empty() {
-                HashMap::new()
-            } else {
-                serde_json::from_str(&raw)?
-            }
-        } else {
-            HashMap::new()
+        // Resilient load: a corrupt state file is quarantined (never silently
+        // discarded or overwritten); an interrupted write is recovered.
+        let map: HashMap<String, serde_json::Value> = match load_json(&state_path)
+            .map_err(|e| StorageError::Io(std::io::Error::other(e.to_string())))?
+        {
+            JsonLoad::Loaded(m) | JsonLoad::RecoveredFromTmp(m) => m,
+            JsonLoad::Missing | JsonLoad::Corrupt { .. } => HashMap::new(),
         };
         Ok(Self {
             base,
@@ -178,13 +177,21 @@ impl PluginStateStore {
     }
 
     pub fn get(&self, key: &str) -> Option<serde_json::Value> {
-        self.map.read().unwrap().get(key).cloned()
+        self.map.read_or_recover().get(key).cloned()
     }
 
     pub fn keys(&self) -> Vec<String> {
-        let mut keys: Vec<String> = self.map.read().unwrap().keys().cloned().collect();
+        let mut keys: Vec<String> = self.map.read_or_recover().keys().cloned().collect();
         keys.sort();
         keys
+    }
+
+    /// Persist the in-memory map durably. The write lock must be held by the
+    /// caller so the map and the file never diverge.
+    fn persist_locked(map: &HashMap<String, serde_json::Value>, path: &Path) -> Result<(), StorageError> {
+        let payload = serde_json::to_string_pretty(map)?;
+        atomic_write_str(path, &payload)?;
+        Ok(())
     }
 
     pub fn set(&self, key: &str, value: serde_json::Value) -> Result<(), StorageError> {
@@ -198,30 +205,33 @@ impl PluginStateStore {
                 MAX_STATE_VALUE,
             ));
         }
-        let mut map = self.map.write().unwrap();
-        map.insert(key.to_string(), value);
+        let mut map = self.map.write_or_recover();
+        let previous = map.insert(key.to_string(), value);
         let payload = serde_json::to_string_pretty(&*map)?;
         if (payload.len() as u64) + Self::dir_size(&self.base.join("data")) > PLUGIN_STATE_QUOTA {
-            map.remove(key);
+            // Roll back precisely: restore the previous value (never delete a
+            // key the caller did not ask us to delete).
+            match previous {
+                Some(prev) => {
+                    map.insert(key.to_string(), prev);
+                }
+                None => {
+                    map.remove(key);
+                }
+            }
             return Err(StorageError::QuotaExceeded(
                 key.to_string(),
                 PLUGIN_STATE_QUOTA,
             ));
         }
-        let tmp = self.state_path().with_extension("tmp");
-        std::fs::write(&tmp, payload)?;
-        std::fs::rename(&tmp, self.state_path())?;
-        Ok(())
+        Self::persist_locked(&map, &self.state_path())
     }
 
     pub fn delete(&self, key: &str) -> Result<bool, StorageError> {
-        let mut map = self.map.write().unwrap();
+        let mut map = self.map.write_or_recover();
         let existed = map.remove(key).is_some();
         if existed {
-            let payload = serde_json::to_string_pretty(&*map)?;
-            let tmp = self.state_path().with_extension("tmp");
-            std::fs::write(&tmp, payload)?;
-            std::fs::rename(&tmp, self.state_path())?;
+            Self::persist_locked(&map, &self.state_path())?;
         }
         Ok(existed)
     }
@@ -282,5 +292,60 @@ mod tests {
             "yan-yi.slurm-monitor"
         );
         assert_eq!(sanitize_plugin_id("evil/../id"), "evil_.._id");
+    }
+
+    #[test]
+    fn corrupt_state_is_quarantined_not_destroyed() {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "wz-store-corrupt-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        {
+            let store = PluginStateStore::open(&root, "test.plugin").unwrap();
+            store.set("k", serde_json::json!("v")).unwrap();
+        }
+        // Simulate a torn write: garbage in state.json.
+        let state = root.join("test.plugin").join("state.json");
+        std::fs::write(&state, "{torn").unwrap();
+        // Reopening succeeds with an empty map…
+        let store = PluginStateStore::open(&root, "test.plugin").unwrap();
+        assert_eq!(store.get("k"), None);
+        // …and the corrupt bytes are preserved under a quarantine name.
+        let quarantined: Vec<_> = std::fs::read_dir(root.join("test.plugin"))
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".corrupt-"))
+            .collect();
+        assert_eq!(quarantined.len(), 1, "corrupt file must be quarantined");
+        assert_eq!(
+            std::fs::read_to_string(quarantined[0].path()).unwrap(),
+            "{torn"
+        );
+        // New writes still durably persist afterwards.
+        store.set("k2", serde_json::json!(1)).unwrap();
+        let store2 = PluginStateStore::open(&root, "test.plugin").unwrap();
+        assert_eq!(store2.get("k2"), Some(serde_json::json!(1)));
+    }
+
+    #[test]
+    fn quota_failure_preserves_previous_value() {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "wz-store-quota-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let store = PluginStateStore::open(&root, "test.plugin").unwrap();
+        store.set("k", serde_json::json!("good")).unwrap();
+        // A write larger than MAX_STATE_VALUE is rejected outright…
+        assert!(store
+            .set("k", serde_json::json!("x".repeat((MAX_STATE_VALUE + 1) as usize)))
+            .is_err());
+        // …and the old value survives.
+        assert_eq!(store.get("k"), Some(serde_json::json!("good")));
     }
 }

@@ -12,6 +12,7 @@ use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use wz_common::{atomic_write_str, load_json, JsonLoad, RwLockRecover};
 
 #[derive(Debug, Error)]
 pub enum SettingsError {
@@ -74,24 +75,32 @@ pub struct SettingsService {
     stores: RwLock<Stores>,
 }
 
-fn load_json(path: &Path) -> Result<HashMap<String, serde_json::Value>, SettingsError> {
-    if !path.exists() {
-        return Ok(HashMap::new());
+/// Load a settings map resiliently: corrupt files are quarantined (never
+/// silently lost) and interrupted writes heal from the `.tmp` sibling. A
+/// corrupt settings file must never prevent the app from starting — the
+/// affected scope just falls back to defaults.
+fn load_map(path: &Path) -> Result<HashMap<String, serde_json::Value>, SettingsError> {
+    match load_json(path)
+        .map_err(|e| SettingsError::Io(std::io::Error::other(e.to_string())))?
+    {
+        JsonLoad::Loaded(m) | JsonLoad::RecoveredFromTmp(m) => Ok(m),
+        JsonLoad::Missing => Ok(HashMap::new()),
+        JsonLoad::Corrupt { quarantined_to } => {
+            tracing::error!(
+                path = %path.display(),
+                quarantined = %quarantined_to.display(),
+                "settings file corrupt; starting from defaults, corrupt copy preserved"
+            );
+            Ok(HashMap::new())
+        }
     }
-    let raw = std::fs::read_to_string(path)?;
-    if raw.trim().is_empty() {
-        return Ok(HashMap::new());
-    }
-    Ok(serde_json::from_str(&raw)?)
 }
 
 fn save_json(path: &Path, map: &HashMap<String, serde_json::Value>) -> Result<(), SettingsError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, serde_json::to_string_pretty(map)?)?;
-    std::fs::rename(&tmp, path)?;
+    atomic_write_str(path, &serde_json::to_string_pretty(map)?)?;
     Ok(())
 }
 
@@ -100,7 +109,7 @@ impl SettingsService {
         Ok(Self {
             descriptors: RwLock::new(Vec::new()),
             stores: RwLock::new(Stores {
-                global: load_json(&global_path)?,
+                global: load_map(&global_path)?,
                 global_path,
                 workspace_path: None,
                 workspace: HashMap::new(),
@@ -110,10 +119,10 @@ impl SettingsService {
 
     /// Attach (or detach) the workspace-scoped store.
     pub fn set_workspace(&self, path: Option<PathBuf>) -> Result<(), SettingsError> {
-        let mut stores = self.stores.write().unwrap();
+        let mut stores = self.stores.write_or_recover();
         match path {
             Some(p) => {
-                let map = load_json(&p)?;
+                let map = load_map(&p)?;
                 stores.workspace_path = Some(p);
                 stores.workspace = map;
             }
@@ -126,7 +135,7 @@ impl SettingsService {
     }
 
     pub fn register_descriptors(&self, descriptors: Vec<SettingDescriptor>) {
-        let mut all = self.descriptors.write().unwrap();
+        let mut all = self.descriptors.write_or_recover();
         for d in descriptors {
             all.retain(|x| x.key != d.key);
             all.push(d);
@@ -135,13 +144,12 @@ impl SettingsService {
 
     pub fn unregister_by_plugin(&self, plugin_id: &str) {
         self.descriptors
-            .write()
-            .unwrap()
+            .write_or_recover()
             .retain(|d| d.plugin_id.as_deref() != Some(plugin_id));
     }
 
     pub fn descriptors(&self) -> Vec<SettingDescriptor> {
-        self.descriptors.read().unwrap().clone()
+        self.descriptors.read_or_recover().clone()
     }
 
     pub fn descriptor(&self, key: &str) -> Option<SettingDescriptor> {
@@ -178,7 +186,7 @@ impl SettingsService {
     /// Effective value: workspace override -> global -> descriptor default -> null.
     pub fn get(&self, key: &str) -> serde_json::Value {
         {
-            let stores = self.stores.read().unwrap();
+            let stores = self.stores.read_or_recover();
             if let Some(v) = stores.workspace.get(key) {
                 return v.clone();
             }
@@ -208,7 +216,7 @@ impl SettingsService {
         value: serde_json::Value,
     ) -> Result<(), SettingsError> {
         self.validate(key, &value)?;
-        let mut stores = self.stores.write().unwrap();
+        let mut stores = self.stores.write_or_recover();
         match scope {
             Scope::Global => {
                 stores.global.insert(key.to_string(), value);
@@ -228,7 +236,7 @@ impl SettingsService {
         if self.descriptor(key).is_none() {
             return Err(SettingsError::UnknownKey(key.to_string()));
         }
-        let mut stores = self.stores.write().unwrap();
+        let mut stores = self.stores.write_or_recover();
         match scope {
             Scope::Global => {
                 stores.global.remove(key);

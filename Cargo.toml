@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/common",
   "crates/permissions",
   "crates/commands",
   "crates/events",
@@ -23,6 +24,7 @@ license = "MIT"
 authors = ["Workbench Zero contributors"]
 
 [workspace.dependencies]
+wz-common = { path = "crates/common" }
 wz-permissions = { path = "crates/permissions" }
 wz-commands = { path = "crates/commands" }
 wz-events = { path = "crates/events" }

@@ -6474,6 +6474,18 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
+ "wz-common",
+]
+
+[[package]]
+name = "wz-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -6485,6 +6497,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
@@ -6512,6 +6525,7 @@ dependencies = [
  "walkdir",
  "wz-artifacts",
  "wz-commands",
+ "wz-common",
  "wz-events",
  "wz-permissions",
  "wz-plugin-runtime",
@@ -6530,6 +6544,8 @@ dependencies = [
  "serde",
  "serde_json",
  "walkdir",
+ "wz-common",
+ "wz-permissions",
 ]
 
 [[package]]
@@ -6540,6 +6556,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
@@ -6554,6 +6571,7 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
+ "wz-common",
  "wz-permissions",
  "wz-settings",
  "zip 2.4.2",
@@ -6578,6 +6596,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
@@ -6588,6 +6607,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
@@ -6599,6 +6619,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "wz-common",
 ]
 
 [[package]]
@@ -6612,6 +6633,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "uuid",
+ "wz-common",
 ]
 
 [[package]]

@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use wz_common::RwLockRecover;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -38,7 +39,7 @@ pub enum PermissionError {
 
 pub type Result<T> = std::result::Result<T, PermissionError>;
 
-/// Canonical permission names known to the kernel (v0.1).
+/// Canonical permission names known to the kernel (v1).
 pub const KNOWN_PERMISSIONS: &[&str] = &[
     "workspace:read",
     "workspace:write",
@@ -50,6 +51,8 @@ pub const KNOWN_PERMISSIONS: &[&str] = &[
     "ai:invoke",
     "mcp:connect",
     "secrets:read",
+    // Mutating secrets (set/delete) requires this stronger grant.
+    "secrets:write",
     "clipboard:read",
     "clipboard:write",
     "system:open",
@@ -156,11 +159,11 @@ impl Evaluator {
     }
 
     pub fn remove_grants(&self, plugin_id: &str) {
-        self.grants.write().unwrap().remove(plugin_id);
+        self.grants.write_or_recover().remove(plugin_id);
     }
 
     pub fn get_grants(&self, plugin_id: &str) -> Option<Grants> {
-        self.grants.read().unwrap().get(plugin_id).cloned()
+        self.grants.read_or_recover().get(plugin_id).cloned()
     }
 
     /// Check a boolean capability (`notification`, `process:spawn`, ...).
@@ -196,7 +199,7 @@ impl Evaluator {
         } else {
             "filesystem:read"
         };
-        let grants = self.grants.read().unwrap().get(plugin_id).cloned();
+        let grants = self.grants.read_or_recover().get(plugin_id).cloned();
         let Some(grants) = grants else {
             return Err(PermissionError::Missing {
                 plugin: plugin_id.to_string(),
@@ -254,7 +257,7 @@ impl Evaluator {
 
     /// Check a network access against the host allow-list.
     pub fn check_network(&self, plugin_id: &str, host: &str) -> Result<()> {
-        let grants = self.grants.read().unwrap().get(plugin_id).cloned();
+        let grants = self.grants.read_or_recover().get(plugin_id).cloned();
         let Some(grants) = grants else {
             return Err(PermissionError::Missing {
                 plugin: plugin_id.to_string(),
@@ -283,7 +286,7 @@ impl Evaluator {
 
     /// Human-readable description used by the install permission prompt.
     pub fn describe_grants(&self, plugin_id: &str) -> Vec<serde_json::Value> {
-        match self.grants.read().unwrap().get(plugin_id) {
+        match self.grants.read_or_recover().get(plugin_id) {
             None => vec![],
             Some(grants) => grants
                 .permissions

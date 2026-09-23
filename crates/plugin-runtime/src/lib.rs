@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use wz_common::{atomic_write_str, load_json, JsonLoad, RwLockRecover};
 use wz_permissions::{parse_declarations, Grants, PermissionDeclaration};
 use wz_settings::{Scope, SettingDescriptor, SettingType};
 
@@ -538,15 +539,23 @@ impl PluginManager {
     // -- persistence --------------------------------------------------------
 
     fn load_state(&self) -> HashMap<String, PluginRecord> {
-        if !self.state_path.exists() {
-            return HashMap::new();
-        }
-        match std::fs::read_to_string(&self.state_path) {
-            Ok(raw) if !raw.trim().is_empty() => serde_json::from_str(&raw).unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "plugin state file corrupt, starting fresh");
+        match load_json(&self.state_path) {
+            Ok(JsonLoad::Loaded(m)) | Ok(JsonLoad::RecoveredFromTmp(m)) => m,
+            Ok(JsonLoad::Missing) => HashMap::new(),
+            Ok(JsonLoad::Corrupt { quarantined_to }) => {
+                // Installed plugins revert to Discovered on next scan and will
+                // require fresh permission approval — the safe direction. The
+                // corrupt bytes are preserved for inspection.
+                tracing::error!(
+                    quarantined = %quarantined_to.display(),
+                    "plugin state file corrupt; install states reset, corrupt copy preserved"
+                );
                 HashMap::new()
-            }),
-            _ => HashMap::new(),
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "plugin state unreadable, starting fresh");
+                HashMap::new()
+            }
         }
     }
 
@@ -554,9 +563,7 @@ impl PluginManager {
         if let Some(parent) = self.state_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let tmp = self.state_path.with_extension("tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(records)?)?;
-        std::fs::rename(&tmp, &self.state_path)?;
+        atomic_write_str(&self.state_path, &serde_json::to_string_pretty(records)?)?;
         Ok(())
     }
 
@@ -565,8 +572,17 @@ impl PluginManager {
     /// Discover plugins from bundled / user / dev directories and merge with
     /// persisted install state. Called at boot and whenever directories change.
     pub fn discover(&self) -> Result<Vec<String>, PluginError> {
-        let persisted = self.load_state();
-        let mut records = persisted;
+        // Hold the write lock across load → merge → save: every mutating RPC
+        // takes the same lock, so a watcher-triggered rediscovery can never
+        // clobber a concurrent install/enable/approval (lost-update race).
+        let mut records_guard = self.records.write_or_recover();
+        // Memory is authoritative once populated; the persisted file is only
+        // consulted at boot (first discover) — every mutation saves eagerly.
+        let mut records = if records_guard.is_empty() {
+            self.load_state()
+        } else {
+            std::mem::take(&mut *records_guard)
+        };
         let mut changed = Vec::new();
 
         let mut scan = |dir: &Path,
@@ -630,11 +646,20 @@ impl PluginManager {
         scan(&self.dev_dir, PluginSource::Dev, false)?;
         scan(&self.user_dir, PluginSource::User, false)?;
 
-        // Persist merged view (drop records whose directories vanished).
+        // Drop records whose directories vanished OR moved outside the known
+        // plugin roots — but only pure scan entries (Discovered). Anything the
+        // user installed keeps its record and its approved grants even if the
+        // directory is briefly missing (unmounted disk, mid-rename staging):
+        // losing approved grants on a hiccup would silently strip a plugin of
+        // the access the user already consented to, and losing the record
+        // would erase the failure history the auto-disable policy relies on.
         let user_dir = self.user_dir.clone();
         let dev_dir = self.dev_dir.clone();
         let bundled_dir = self.bundled_dir.clone();
         records.retain(|_, rec| {
+            if rec.is_installed() {
+                return true;
+            }
             if !rec.install_path.is_dir() {
                 return false;
             }
@@ -657,19 +682,20 @@ impl PluginManager {
         }
 
         self.save_state(&records)?;
-        *self.records.write().unwrap() = records;
+        *records_guard = records;
+        drop(records_guard);
         Ok(changed)
     }
 
     pub fn list(&self) -> Vec<PluginInfo> {
-        let records = self.records.read().unwrap();
+        let records = self.records.read_or_recover();
         let mut infos: Vec<PluginInfo> = records.values().map(PluginInfo::from).collect();
         infos.sort_by(|a, b| a.manifest.id.cmp(&b.manifest.id));
         infos
     }
 
     pub fn get(&self, id: &str) -> Option<PluginRecord> {
-        self.records.read().unwrap().get(id).cloned()
+        self.records.read_or_recover().get(id).cloned()
     }
 
     /// Plugins that should activate for a given activation event.
@@ -689,7 +715,7 @@ impl PluginManager {
     }
 
     pub fn set_state(&self, id: &str, state: PluginState) -> Result<(), PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -701,7 +727,7 @@ impl PluginManager {
     }
 
     pub fn record_failure(&self, id: &str) -> Result<u32, PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -716,7 +742,7 @@ impl PluginManager {
         id: &str,
         pending: Option<Grants>,
     ) -> Result<(), PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -730,20 +756,30 @@ impl PluginManager {
     /// arbitrary directory / `.wzplugin.zip` on disk.
     pub fn install_from(&self, source: &str) -> Result<PluginInfo, PluginError> {
         let path = PathBuf::from(source);
-        let staging: PathBuf;
+        let staging: Option<PathBuf>;
         let src_dir: PathBuf = if path.is_dir() {
+            staging = None;
             path
         } else if path.extension().map(|e| e == "zip").unwrap_or(false)
             || path.to_string_lossy().ends_with(".wzplugin.zip")
         {
-            staging = self.extract_zip(&path)?;
-            staging
+            let s = self.extract_zip(&path)?;
+            staging = Some(s.clone());
+            s
         } else {
             return Err(PluginError::Package(format!(
                 "`{source}` is neither a plugin directory nor a .wzplugin.zip"
             )));
         };
+        // Whatever happens below, never leak the staging directory.
+        let result = self.install_from_dir(&src_dir, source);
+        if let Some(s) = staging {
+            let _ = std::fs::remove_dir_all(&s);
+        }
+        result
+    }
 
+    fn install_from_dir(&self, src_dir: &Path, source: &str) -> Result<PluginInfo, PluginError> {
         let manifest_path = src_dir.join("plugin.json");
         if !manifest_path.exists() {
             return Err(PluginError::Package(format!(
@@ -761,9 +797,9 @@ impl PluginManager {
         if target.exists() {
             std::fs::remove_dir_all(&target).map_err(|e| PluginError::Package(e.to_string()))?;
         }
-        copy_dir(&src_dir, &target).map_err(|e| PluginError::Package(e.to_string()))?;
+        copy_dir(src_dir, &target).map_err(|e| PluginError::Package(e.to_string()))?;
 
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         // Installing over an existing plugin = update; keep grants, detect
         // permission drift (spec §33: new permissions need renewed approval).
         let existing = records.get(&manifest.id).cloned();
@@ -798,6 +834,12 @@ impl PluginManager {
         Ok(info)
     }
 
+    /// A plugin package is UI code + manifest: 256 MiB of decompressed data
+    /// and 4096 entries are far beyond any legitimate plugin but safely below
+    /// zip-bomb territory.
+    const MAX_PACKAGE_BYTES: u64 = 256 * 1024 * 1024;
+    const MAX_PACKAGE_ENTRIES: usize = 4096;
+
     fn extract_zip(&self, zip_path: &Path) -> Result<PathBuf, PluginError> {
         let staging = self
             .user_dir
@@ -807,6 +849,24 @@ impl PluginManager {
             std::fs::File::open(zip_path).map_err(|e| PluginError::Package(e.to_string()))?;
         let mut archive =
             zip::ZipArchive::new(file).map_err(|e| PluginError::Package(e.to_string()))?;
+        // Pre-validate from the central directory before writing a byte:
+        // entry count and total decompressed size are capped (zip-bomb guard).
+        if archive.len() > Self::MAX_PACKAGE_ENTRIES {
+            return Err(PluginError::Package(format!(
+                "package has {} entries (limit {})",
+                archive.len(),
+                Self::MAX_PACKAGE_ENTRIES
+            )));
+        }
+        let total: u64 = (0..archive.len())
+            .filter_map(|i| archive.by_index(i).ok().map(|f| f.size()))
+            .sum();
+        if total > Self::MAX_PACKAGE_BYTES {
+            return Err(PluginError::Package(format!(
+                "package decompresses to {total} bytes (limit {})",
+                Self::MAX_PACKAGE_BYTES
+            )));
+        }
         archive
             .extract(&staging)
             .map_err(|e| PluginError::Package(format!("zip extract failed: {e}")))?;
@@ -830,7 +890,7 @@ impl PluginManager {
 
     /// Approve the requested permission set and enable.
     pub fn approve_permissions(&self, id: &str, approve: bool) -> Result<PluginInfo, PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -853,7 +913,7 @@ impl PluginManager {
 
     /// Trusted (bundled) plugins can be installed with auto-granted permissions.
     pub fn install_trusted(&self, id: &str) -> Result<PluginInfo, PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -871,7 +931,7 @@ impl PluginManager {
     }
 
     pub fn enable(&self, id: &str) -> Result<PluginInfo, PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -887,7 +947,7 @@ impl PluginManager {
     }
 
     pub fn disable(&self, id: &str) -> Result<PluginInfo, PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -897,8 +957,19 @@ impl PluginManager {
         Ok(info)
     }
 
+    /// Zero the failure counter without touching state — re-enabling is a
+    /// separate call that goes through the pending-permission gate.
+    pub fn reset_failures(&self, id: &str) -> Result<(), PluginError> {
+        let mut records = self.records.write_or_recover();
+        let rec = records
+            .get_mut(id)
+            .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
+        rec.failure_count = 0;
+        self.save_state(&records)
+    }
+
     pub fn set_pinned(&self, id: &str, pinned: bool) -> Result<(), PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -907,7 +978,7 @@ impl PluginManager {
     }
 
     pub fn uninstall(&self, id: &str) -> Result<(), PluginError> {
-        let mut records = self.records.write().unwrap();
+        let mut records = self.records.write_or_recover();
         let rec = records
             .get_mut(id)
             .ok_or_else(|| PluginError::NotInstalled(id.to_string()))?;
@@ -957,21 +1028,22 @@ pub fn permission_drift(current: &Grants, requested: &Grants) -> Vec<String> {
         match current.permissions.get(name) {
             None => drift.push(name.clone()),
             Some(current_restriction) => {
-                // A permission that gains scope entries also needs re-approval
-                // (e.g. new filesystem roots / hosts).
-                if let Some(roots) = &restriction.roots {
-                    if let Some(current_roots) = &current_restriction.roots {
-                        if roots.iter().any(|r| !current_roots.contains(r)) {
-                            drift.push(name.clone());
-                        }
-                    }
-                }
-                if let Some(hosts) = &restriction.hosts {
-                    if let Some(current_hosts) = &current_restriction.hosts {
-                        if hosts.iter().any(|h| !current_hosts.contains(h)) {
-                            drift.push(name.clone());
-                        }
-                    }
+                // Scope analysis per dimension (roots / hosts):
+                //   requested Some(r) vs current Some(c): any r ∉ c drifts.
+                //   requested None (unrestricted) vs current Some(..): the
+                //     update silently widens a scoped grant to whole-capability
+                //     access — this MUST require renewed approval.
+                //   requested Some(..) vs current None / both None: narrowing
+                //     or equal — no drift.
+                let widens = |req: &Option<Vec<String>>, cur: &Option<Vec<String>>| match (req, cur) {
+                    (Some(r), Some(c)) => r.iter().any(|x| !c.contains(x)),
+                    (None, Some(_)) => true,
+                    _ => false,
+                };
+                if widens(&restriction.roots, &current_restriction.roots)
+                    || widens(&restriction.hosts, &current_restriction.hosts)
+                {
+                    drift.push(name.clone());
                 }
             }
         }
@@ -1263,5 +1335,64 @@ mod tests {
             ]),
         };
         assert_eq!(permission_drift(&current, &extra), vec!["process:spawn"]);
+    }
+
+    #[test]
+    fn drift_scoped_to_unscoped_widening_requires_reapproval() {
+        let scoped = |hosts: Vec<String>| ScopeRestriction {
+            roots: None,
+            hosts: Some(hosts),
+        };
+        let unscoped = || ScopeRestriction::default();
+
+        let current = Grants {
+            permissions: HashMap::from([("network".to_string(), scoped(vec!["a.org".into()]))]),
+        };
+        // Same scope: no drift.
+        let same = Grants {
+            permissions: HashMap::from([("network".to_string(), scoped(vec!["a.org".into()]))]),
+        };
+        assert!(permission_drift(&current, &same).is_empty());
+        // Widened scope: drift.
+        let widened = Grants {
+            permissions: HashMap::from([(
+                "network".to_string(),
+                scoped(vec!["a.org".into(), "b.org".into()]),
+            )]),
+        };
+        assert_eq!(permission_drift(&current, &widened), vec!["network"]);
+        // Scoped → unrestricted: the dangerous update. MUST drift.
+        let unob = Grants {
+            permissions: HashMap::from([("network".to_string(), unscoped())]),
+        };
+        assert_eq!(permission_drift(&current, &unob), vec!["network"]);
+        // Unrestricted → scoped: narrowing, no drift.
+        let current_unob = Grants {
+            permissions: HashMap::from([("network".to_string(), unscoped())]),
+        };
+        assert!(permission_drift(&current_unob, &same).is_empty());
+    }
+
+    use wz_permissions::ScopeRestriction;
+
+    #[test]
+    fn corrupt_plugins_state_is_quarantined() {
+        let base = temp();
+        let mgr = manager(&base);
+        let user_dir = base.join("user-plugins");
+        write_plugin(&user_dir, "test.alpha", "1.0.0", r#"["notification"]"#);
+        mgr.discover().unwrap();
+        // Corrupt the state file, then rediscover via a fresh manager.
+        std::fs::write(base.join("plugins-state.json"), "{torn").unwrap();
+        let mgr2 = manager(&base);
+        mgr2.discover().unwrap();
+        // Plugin is rediscovered from disk (safe reset), corrupt bytes quarantined.
+        assert_eq!(mgr2.get("test.alpha").unwrap().state, PluginState::Discovered);
+        let quarantined: Vec<_> = std::fs::read_dir(&base)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".corrupt-"))
+            .collect();
+        assert_eq!(quarantined.len(), 1);
     }
 }

@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use wz_common::RwLockRecover;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -55,7 +56,7 @@ impl CommandRegistry {
     }
 
     pub fn register(&self, def: CommandDef) -> Result<(), RegistryError> {
-        let mut map = self.commands.write().unwrap();
+        let mut map = self.commands.write_or_recover();
         if map.contains_key(&def.id) {
             return Err(RegistryError::Duplicate(def.id));
         }
@@ -65,15 +66,15 @@ impl CommandRegistry {
 
     /// Replace a registration (used when a plugin re-registers after reload).
     pub fn upsert(&self, def: CommandDef) {
-        self.commands.write().unwrap().insert(def.id.clone(), def);
+        self.commands.write_or_recover().insert(def.id.clone(), def);
     }
 
     pub fn unregister(&self, id: &str) -> bool {
-        self.commands.write().unwrap().remove(id).is_some()
+        self.commands.write_or_recover().remove(id).is_some()
     }
 
     pub fn unregister_by_plugin(&self, plugin_id: &str) -> Vec<String> {
-        let mut map = self.commands.write().unwrap();
+        let mut map = self.commands.write_or_recover();
         let removed: Vec<String> = map
             .iter()
             .filter(|(_, d)| d.plugin_id.as_deref() == Some(plugin_id))
@@ -86,11 +87,11 @@ impl CommandRegistry {
     }
 
     pub fn get(&self, id: &str) -> Option<CommandDef> {
-        self.commands.read().unwrap().get(id).cloned()
+        self.commands.read_or_recover().get(id).cloned()
     }
 
     pub fn list(&self) -> Vec<CommandDef> {
-        let mut all: Vec<CommandDef> = self.commands.read().unwrap().values().cloned().collect();
+        let mut all: Vec<CommandDef> = self.commands.read_or_recover().values().cloned().collect();
         all.sort_by(|a, b| a.id.cmp(&b.id));
         all
     }

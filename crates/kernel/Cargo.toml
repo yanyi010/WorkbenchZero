@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+wz-common = { workspace = true }
 wz-permissions = { workspace = true }
 wz-commands = { workspace = true }
 wz-events = { workspace = true }

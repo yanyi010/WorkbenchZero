@@ -13,11 +13,12 @@
 //! through the owning plugin's explicit request.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 use serde::Serialize;
 use thiserror::Error;
+use wz_common::{load_json, JsonLoad, RwLockRecover};
 
 const SERVICE: &str = "workbench-zero";
 
@@ -44,6 +45,9 @@ pub struct SecretsService {
     backend: Backend,
     fallback_path: Option<PathBuf>,
     fallback: RwLock<BTreeMap<String, String>>,
+    /// Non-fatal degradation surfaced in `status()` (e.g. a quarantined
+    /// corrupt fallback file).
+    degraded: Option<String>,
 }
 
 fn namespaced(plugin_id: &str, key: &str) -> String {
@@ -63,11 +67,16 @@ impl SecretsService {
     /// application data dir used when the keychain is unavailable.
     pub fn new(fallback_dir: PathBuf) -> Self {
         let backend = Self::probe_backend();
+        let mut degraded = None;
         let (backend, fallback_path, fallback) = match backend {
             Backend::SecretService => (Backend::SecretService, None, BTreeMap::new()),
             Backend::LocalFile => {
                 let path = fallback_dir.join("secrets.json");
-                let map = load_fallback(&path).unwrap_or_default();
+                // A corrupt fallback file is quarantined (bytes preserved) and
+                // never silently overwritten — the next `set` writes a fresh
+                // file while the quarantined copy remains for manual recovery.
+                let (map, note) = load_fallback(&path);
+                degraded = note;
                 (Backend::LocalFile, Some(path), map)
             }
         };
@@ -75,6 +84,7 @@ impl SecretsService {
             backend,
             fallback_path,
             fallback: RwLock::new(fallback),
+            degraded,
         }
     }
 
@@ -107,11 +117,11 @@ impl SecretsService {
         serde_json::json!({
             "backend": self.backend,
             "warning": match self.backend {
-                Backend::SecretService => None,
-                Backend::LocalFile => Some(
+                Backend::SecretService => self.degraded.clone(),
+                Backend::LocalFile => Some(self.degraded.clone().unwrap_or_else(||
                     "OS keychain (Secret Service) is unavailable; secrets are stored in a \
-                     restricted-permission local file. Start gnome-keyring for full protection.",
-                ),
+                     restricted-permission local file. Start gnome-keyring for full protection.".to_string()
+                )),
             },
         })
     }
@@ -132,9 +142,14 @@ impl SecretsService {
                 Ok(())
             }
             Backend::LocalFile => {
-                let mut map = self.fallback.write().unwrap();
+                let Some(path) = self.fallback_path.clone() else {
+                    return Err(SecretsError::Keychain(
+                        "local-file backend selected without a fallback path".into(),
+                    ));
+                };
+                let mut map = self.fallback.write_or_recover();
                 map.insert(full, value.to_string());
-                persist(&self.fallback_path.clone().unwrap(), &map)?;
+                persist(&path, &map)?;
                 Ok(())
             }
         }
@@ -155,7 +170,7 @@ impl SecretsService {
                     Err(e) => Err(SecretsError::Keychain(e.to_string())),
                 }
             }
-            Backend::LocalFile => Ok(self.fallback.read().unwrap().get(&full).cloned()),
+            Backend::LocalFile => Ok(self.fallback.read_or_recover().get(&full).cloned()),
         }
     }
 
@@ -178,10 +193,15 @@ impl SecretsService {
                 }
             }
             Backend::LocalFile => {
-                let mut map = self.fallback.write().unwrap();
+                let Some(path) = self.fallback_path.clone() else {
+                    return Err(SecretsError::Keychain(
+                        "local-file backend selected without a fallback path".into(),
+                    ));
+                };
+                let mut map = self.fallback.write_or_recover();
                 let existed = map.remove(&full).is_some();
                 if existed {
-                    persist(&self.fallback_path.clone().unwrap(), &map)?;
+                    persist(&path, &map)?;
                 }
                 Ok(existed)
             }
@@ -205,8 +225,7 @@ impl SecretsService {
             }
             Backend::LocalFile => self
                 .fallback
-                .read()
-                .unwrap()
+                .read_or_recover()
                 .keys()
                 .filter(|k| k.starts_with(&prefix) && !k.ends_with("/.index"))
                 .map(|k| k[prefix.len()..].to_string())
@@ -243,33 +262,66 @@ impl SecretsService {
     }
 }
 
-fn load_fallback(path: &PathBuf) -> Result<BTreeMap<String, String>, SecretsError> {
+/// Load the fallback secrets file. Returns the map plus an optional
+/// degradation note for `status()`. Corrupt files are quarantined and the
+/// service starts empty — previous secrets remain recoverable by hand.
+fn load_fallback(path: &Path) -> (BTreeMap<String, String>, Option<String>) {
     if !path.exists() {
-        return Ok(BTreeMap::new());
+        return (BTreeMap::new(), None);
     }
+    // Repair permissions first: the file must never be group/world readable.
     use std::os::unix::fs::PermissionsExt;
-    let meta = std::fs::metadata(path)?;
-    let mut perms = meta.permissions();
-    if perms.mode() & 0o077 != 0 {
-        perms.set_mode(0o600);
-        std::fs::set_permissions(path, perms)?;
+    if let Ok(meta) = std::fs::metadata(path) {
+        let mut perms = meta.permissions();
+        if perms.mode() & 0o077 != 0 {
+            perms.set_mode(0o600);
+            let _ = std::fs::set_permissions(path, perms);
+        }
     }
-    let raw = std::fs::read_to_string(path)?;
-    if raw.trim().is_empty() {
-        return Ok(BTreeMap::new());
+    match load_json::<BTreeMap<String, String>>(path) {
+        Ok(JsonLoad::Loaded(m)) | Ok(JsonLoad::RecoveredFromTmp(m)) => (m, None),
+        Ok(JsonLoad::Missing) => (BTreeMap::new(), None),
+        Ok(JsonLoad::Corrupt { quarantined_to }) => (
+            BTreeMap::new(),
+            Some(format!(
+                "secrets file was corrupt and has been preserved at `{}`; secrets are empty until re-set",
+                quarantined_to.display()
+            )),
+        ),
+        Err(e) => {
+            tracing::error!(error = %e, "failed to read secrets file");
+            (
+                BTreeMap::new(),
+                Some(format!("secrets file unreadable: {e}")),
+            )
+        }
     }
-    Ok(serde_json::from_str(&raw)?)
 }
 
-fn persist(path: &PathBuf, map: &BTreeMap<String, String>) -> Result<(), SecretsError> {
+fn persist(path: &Path, map: &BTreeMap<String, String>) -> Result<(), SecretsError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let tmp = path.with_extension("tmp");
+    // Restrictive permissions from creation: write to a unique tmp file, set
+    // 0600 before the atomic rename so a secrets file never exists with wider
+    // permissions at any point in time.
+    let tmp = path.with_file_name(format!(
+        ".secrets.json.tmp-{}",
+        std::process::id()
+    ));
     std::fs::write(&tmp, serde_json::to_string(map)?)?;
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))?;
+    // atomic_write would create a fresh tmp; reuse its fsync discipline by
+    // renaming ourselves after explicit file fsync.
+    {
+        let f = std::fs::File::open(&tmp)?;
+        f.sync_all()?;
+    }
     std::fs::rename(&tmp, path)?;
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::File::open(parent).map(|d| d.sync_all());
+    }
     Ok(())
 }
 
@@ -314,5 +366,28 @@ mod tests {
         let svc = SecretsService::new(tmpdir());
         let status = svc.status();
         assert!(status["backend"].is_string());
+    }
+
+    #[test]
+    fn corrupt_fallback_never_silently_overwritten() {
+        let dir = tmpdir();
+        // Force the LocalFile backend path shape: write a corrupt secrets.json.
+        let path = dir.join("secrets.json");
+        std::fs::write(&path, "{torn secrets").unwrap();
+        let (map, note) = load_fallback(&path);
+        assert!(map.is_empty());
+        assert!(note.is_some(), "degradation must be surfaced");
+        // The original bytes survive under a quarantine name, not overwritten.
+        assert!(!path.exists());
+        let quarantined: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".corrupt-"))
+            .collect();
+        assert_eq!(quarantined.len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(quarantined[0].path()).unwrap(),
+            "{torn secrets"
+        );
     }
 }

@@ -40,8 +40,9 @@ pub fn start(kernel: std::sync::Arc<Kernel>) {
         return;
     }
 
-    // Keep the watcher alive for the process lifetime.
-    std::thread::Builder::new()
+    // Keep the watcher alive for the process lifetime. Hot reload is a
+    // convenience: if the thread cannot spawn, log and continue.
+    let spawned = std::thread::Builder::new()
         .name("ed-plugin-watcher".into())
         .spawn(move || {
             // `watcher` must outlive the loop; move it here.
@@ -74,6 +75,8 @@ pub fn start(kernel: std::sync::Arc<Kernel>) {
                     Err(mpsc::RecvTimeoutError::Disconnected) => return,
                 }
             }
-        })
-        .expect("spawn plugin watcher thread");
+        });
+    if let Err(e) = spawned {
+        tracing::warn!(error = %e, "plugin watcher thread unavailable; hot reload disabled");
+    }
 }
