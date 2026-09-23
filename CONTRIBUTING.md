@@ -51,6 +51,13 @@ npm run build           # plugins → registry → vite
   example exercising them.
 - Behavioral changes to the wire protocol need an ADR.
 
+## Brand assets
+
+The icon set is generated from a single source: `npx tauri icon
+docs/assets/logo.png` (writes `apps/desktop/src-tauri/icons/`). Never edit
+the generated files by hand; change `docs/assets/logo.svg` and re-render
+with `rsvg-convert -w 1024 -h 1024 docs/assets/logo.svg -o docs/assets/logo.png`.
+
 ## Writing plugins
 
 You usually don't need to touch this repo at all — plugins are loaded from
