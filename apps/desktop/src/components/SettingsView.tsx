@@ -234,7 +234,7 @@ function WorkspaceSettings() {
                   small
                   disabled={current?.id === w.id}
                   onClick={() => {
-                    void rpc(Methods.workspace.open, { id: w.id }).then(() => refresh());
+                    void useApp.getState().openWorkspace(w.id).then(() => refresh());
                   }}
                 >
                   Open

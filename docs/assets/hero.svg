@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="Workbench Zero shell">
+  <!-- The running workbench, drawn to the product's real tokens:
+       surface #15171C · panels #1A1D23 · hairline #262A31 · accent #5E8CFF.
+       8px grid; one accent; muted chrome. -->
+  <defs>
+    <filter id="hShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <clipPath id="hWin"><rect x="64" y="64" width="1472" height="872" rx="14"/></clipPath>
+    <style>
+      .t  { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+      .m  { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#0C0D10"/>
+  <rect x="76" y="84" width="1448" height="856" rx="16" fill="#000000" opacity="0.4" filter="url(#hShadow)"/>
+
+  <g clip-path="url(#hWin)">
+    <rect x="64" y="64" width="1472" height="872" fill="#15171C"/>
+
+    <!-- ── title bar ─────────────────────────────────────────── -->
+    <rect x="64" y="64" width="1472" height="44" fill="#121317"/>
+    <!-- mark -->
+    <circle cx="89" cy="81" r="7" fill="none" stroke="#5E8CFF" stroke-width="3"/>
+    <rect x="76" y="91" width="28" height="4" rx="2" fill="#3A4250"/>
+    <text class="t" x="114" y="90" font-size="14.5" font-weight="600" fill="#ECEDEF" letter-spacing="0.2">Workbench Zero</text>
+    <!-- workspace chip -->
+    <rect x="716" y="73" width="168" height="26" rx="13" fill="#1C1F25" stroke="#262B33"/>
+    <text class="t" x="752" y="90" font-size="12.5" fill="#C9CDD4">Research</text>
+    <path d="M846 83 l5 5 l5 -5" fill="none" stroke="#69707C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- version pill -->
+    <rect x="1412" y="73" width="100" height="26" rx="13" fill="#16203A" stroke="#2E4372"/>
+    <text class="t" x="1440" y="90" font-size="12" font-weight="600" fill="#7AA2FF" letter-spacing="0.4">v1.0.0</text>
+
+    <!-- ── activity rail ─────────────────────────────────────── -->
+    <rect x="64" y="108" width="56" height="800" fill="#121317"/>
+    <!-- active item -->
+    <rect x="64" y="122" width="2.5" height="22" fill="#5E8CFF"/>
+    <rect x="81" y="122" width="22" height="22" rx="6" fill="#262C38"/>
+    <rect x="86.5" y="127.5" width="11" height="13" rx="2" fill="none" stroke="#8FB0FF" stroke-width="1.5"/>
+    <path d="M89 131.5 h5 M89 134.5 h5" stroke="#8FB0FF" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- search -->
+    <circle cx="92" cy="179" r="4.5" fill="none" stroke="#6B7280" stroke-width="1.6"/>
+    <path d="M95.4 182.4 l4 4" stroke="#6B7280" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- terminal -->
+    <path d="M88 222 l5 5 l-5 5" fill="none" stroke="#6B7280" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M96.5 232.5 h6" stroke="#6B7280" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- plugins -->
+    <rect x="86" y="264" width="5.5" height="5.5" rx="1.5" fill="#6B7280"/>
+    <rect x="93.5" y="264" width="5.5" height="5.5" rx="1.5" fill="#6B7280"/>
+    <rect x="86" y="271.5" width="5.5" height="5.5" rx="1.5" fill="#6B7280"/>
+    <rect x="93.5" y="271.5" width="5.5" height="5.5" rx="1.5" fill="#6B7280"/>
+    <!-- settings -->
+    <circle cx="92" cy="872" r="1.8" fill="#6B7280"/>
+    <circle cx="92" cy="880" r="1.8" fill="#6B7280"/>
+    <circle cx="92" cy="888" r="1.8" fill="#6B7280"/>
+
+    <!-- ── sidebar ───────────────────────────────────────────── -->
+    <rect x="120" y="108" width="252" height="800" fill="#16181E"/>
+    <rect x="371.25" y="108" width="1" height="800" fill="#262A31"/>
+    <text class="t" x="140" y="134" font-size="10.5" font-weight="600" fill="#69707C" letter-spacing="1.6">MEMOS</text>
+
+    <!-- active row -->
+    <rect x="132" y="146" width="228" height="28" rx="7" fill="#232833"/>
+    <rect x="142" y="153.5" width="10" height="13" rx="2" fill="none" stroke="#8FB0FF" stroke-width="1.4"/>
+    <text class="t" x="162" y="165" font-size="12.5" fill="#EDEEF0">reading-list.md</text>
+    <!-- rows -->
+    <rect x="142" y="181.5" width="10" height="13" rx="2" fill="none" stroke="#59606B" stroke-width="1.3"/>
+    <text class="t" x="162" y="193" font-size="12.5" fill="#9BA1A9">release-notes.md</text>
+    <rect x="142" y="209.5" width="10" height="13" rx="2" fill="none" stroke="#59606B" stroke-width="1.3"/>
+    <text class="t" x="162" y="221" font-size="12.5" fill="#9BA1A9">roadmap.md</text>
+    <rect x="142" y="237.5" width="10" height="13" rx="2" fill="none" stroke="#59606B" stroke-width="1.3"/>
+    <text class="t" x="162" y="249" font-size="12.5" fill="#9BA1A9">conference-notes.md</text>
+
+    <text class="t" x="140" y="300" font-size="10.5" font-weight="600" fill="#69707C" letter-spacing="1.6">TASKS</text>
+    <rect x="142" y="312" width="12" height="12" rx="3" fill="none" stroke="#39404B" stroke-width="1.4"/>
+    <text class="t" x="162" y="322" font-size="12.5" fill="#9BA1A9">Publish release notes</text>
+    <rect x="142" y="340" width="12" height="12" rx="3" fill="#5E8CFF"/>
+    <path d="M145.5 346.5 l2.6 2.6 l4.6 -5.4" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="t" x="162" y="350" font-size="12.5" fill="#69707C">Ship v1.0.0</text>
+    <path d="M162 345.5 h62" stroke="#4B515C" stroke-width="1"/>
+
+    <!-- sidebar footer -->
+    <rect x="132" y="852" width="228" height="1" fill="#23262E"/>
+    <circle cx="147" cy="873" r="9" fill="#2E4372"/>
+    <text class="t" x="140.5" y="877" font-size="10" font-weight="600" fill="#A9C2FF">R</text>
+    <text class="t" x="164" y="877" font-size="11.5" fill="#9BA1A9">Local vault — yours</text>
+
+    <!-- ── tab strip ─────────────────────────────────────────── -->
+    <rect x="372" y="108" width="1164" height="36" fill="#121317"/>
+    <rect x="372" y="108" width="192" height="38" rx="8" fill="#15171C"/>
+    <rect x="372" y="108" width="192" height="2" fill="#5E8CFF"/>
+    <text class="t" x="392" y="131" font-size="12.5" fill="#EDEEF0">reading-list.md</text>
+    <path d="M537 122 l6 6 M543 122 l-6 6" stroke="#5C636E" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="564" y="114" width="1" height="26" fill="#23262E"/>
+    <text class="t" x="584" y="131" font-size="12.5" fill="#8A9098">Dashboard</text>
+    <rect x="708" y="114" width="1" height="26" fill="#23262E"/>
+    <rect x="372" y="143.25" width="1164" height="1" fill="#262A31"/>
+
+    <!-- ── document column ───────────────────────────────────── -->
+    <text class="t" x="404" y="204" font-size="27" font-weight="600" fill="#F2F3F5" letter-spacing="-0.2">Reading list</text>
+    <text class="m" x="404" y="230" font-size="12" fill="#69707C">Memos/reading-list.md · edited 2 min ago · 214 words</text>
+    <rect x="404" y="248" width="608" height="1" fill="#24282F"/>
+
+    <text class="t" x="404" y="286" font-size="15" font-weight="600" fill="#E8E9EB">Now reading</text>
+    <rect x="406" y="306" width="5" height="5" fill="#39404B"/>
+    <text class="t" x="424" y="312" font-size="14" fill="#D7DADE">The Practice of Programming — ch. 4</text>
+    <rect x="406" y="334" width="5" height="5" fill="#39404B"/>
+    <text class="t" x="424" y="340" font-size="14" fill="#7AA2FF">A Philosophy of Software Design</text>
+    <rect x="406" y="362" width="5" height="5" fill="#39404B"/>
+    <text class="t" x="424" y="368" font-size="14" fill="#D7DADE">Designing Data-Intensive Applications <tspan fill="#69707C">— queued</tspan></text>
+
+    <!-- command block -->
+    <rect x="404" y="398" width="608" height="78" rx="10" fill="#121418" stroke="#23262E"/>
+    <rect x="404" y="398" width="3" height="78" fill="#2B303A"/>
+    <text class="m" x="428" y="430" font-size="13"><tspan fill="#46A758" font-weight="bold">$</tspan><tspan fill="#C9CDD4">  wb plugin pack zero.memo</tspan></text>
+    <text class="m" x="428" y="456" font-size="12.5" fill="#69707C">✓ packed zero.memo-1.3.2.wzplugin.zip (18.2 kB)</text>
+
+    <text class="t" x="404" y="522" font-size="14" fill="#69707C">related: <tspan fill="#7AA2FF">[[release-notes]]</tspan> · <tspan fill="#7AA2FF">[[roadmap]]</tspan></text>
+
+    <!-- quote block -->
+    <rect x="404" y="556" width="608" height="64" rx="10" fill="#121418" stroke="#23262E"/>
+    <rect x="404" y="556" width="3" height="64" fill="#5E8CFF"/>
+    <text class="t" x="428" y="582" font-size="13.5" fill="#C9CDD4">“Programs must be written for people to read, and only</text>
+    <text class="t" x="428" y="604" font-size="13.5" fill="#C9CDD4">incidentally for machines to execute.” <tspan fill="#69707C">— Abelson &amp; Sussman</tspan></text>
+
+    <text class="t" x="404" y="672" font-size="15" font-weight="600" fill="#E8E9EB">Backlog</text>
+    <rect x="406" y="696" width="5" height="5" fill="#39404B"/>
+    <text class="t" x="424" y="702" font-size="14" fill="#D7DADE">Paper — “The Architecture of Complexity”</text>
+    <rect x="406" y="724" width="5" height="5" fill="#39404B"/>
+    <text class="t" x="424" y="730" font-size="14" fill="#D7DADE">Notes on Rust atomics for the kernel deep-dive</text>
+
+    <!-- outline hint -->
+    <text class="t" x="404" y="876" font-size="11" fill="#4B515C">⌘K command palette · Alt+Space quick capture</text>
+
+    <!-- ── right column: living plugins ──────────────────────── -->
+    <!-- sticky -->
+    <rect x="1084" y="192" width="416" height="132" rx="10" fill="#F2CE61"/>
+    <text class="t" x="1108" y="222" font-size="13.5" font-weight="600" fill="#23200F">Plane tickets</text>
+    <text class="t" x="1108" y="248" font-size="12.5" fill="#3A331A">Book before Thursday — prices jump.</text>
+    <text class="t" x="1108" y="270" font-size="12.5" fill="#3A331A">- [ ] compare trains too</text>
+    <text class="t" x="1108" y="304" font-size="11" fill="#7A6A2C">zero.sticky · autosaved 12s ago</text>
+
+    <!-- tasks card -->
+    <rect x="1084" y="340" width="416" height="148" rx="10" fill="#1A1D23" stroke="#262A31"/>
+    <circle cx="1106" cy="366" r="3" fill="#5E8CFF"/>
+    <text class="t" x="1118" y="370" font-size="10.5" font-weight="600" fill="#8A9098" letter-spacing="1.5">TODAY</text>
+    <rect x="1108" y="388" width="12" height="12" rx="3" fill="none" stroke="#39404B" stroke-width="1.4"/>
+    <text class="t" x="1128" y="399" font-size="12.5" fill="#B9BEC6">Publish release notes</text>
+    <rect x="1108" y="420" width="12" height="12" rx="3" fill="none" stroke="#39404B" stroke-width="1.4"/>
+    <text class="t" x="1128" y="431" font-size="12.5" fill="#B9BEC6">Refresh README visuals</text>
+    <rect x="1108" y="452" width="12" height="12" rx="3" fill="#5E8CFF"/>
+    <path d="M1111.5 458.5 l2.6 2.6 l4.6 -5.4" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="t" x="1128" y="463" font-size="12.5" fill="#69707C">Ship v1.0.0</text>
+
+    <!-- ai card -->
+    <rect x="1084" y="504" width="416" height="156" rx="10" fill="#1A1D23" stroke="#262A31"/>
+    <circle cx="1106" cy="530" r="3" fill="#5E8CFF"/>
+    <text class="t" x="1118" y="534" font-size="10.5" font-weight="600" fill="#8A9098" letter-spacing="1.5">ZERO.AI</text>
+    <rect x="1242" y="548" width="234" height="34" rx="11" fill="#25314F"/>
+    <text class="t" x="1256" y="569" font-size="12.5" fill="#DCE3F5">Summarize my reading list</text>
+    <text class="t" x="1108" y="608" font-size="12.5" fill="#D7DADE">Three themes emerge:</text>
+    <text class="t" x="1108" y="632" font-size="12.5" fill="#D7DADE">1. Craft of tools — PoP, Mythical Man-Month</text>
+    <text class="t" x="1108" y="656" font-size="12.5" fill="#D7DADE">2. Systems thinking — DDIA (queued)</text>
+
+    <!-- ── status bar ────────────────────────────────────────── -->
+    <rect x="64" y="908" width="1472" height="28" fill="#121317"/>
+    <rect x="64" y="908" width="1472" height="1" fill="#262A31"/>
+    <text class="t" x="88" y="926" font-size="11.5" fill="#7AA2FF" font-weight="600">⌘ Research</text>
+    <circle cx="1196" cy="922" r="3.5" fill="#46A758"/>
+    <text class="t" x="1208" y="926" font-size="11.5" fill="#9BA1A9">6 plugins</text>
+    <text class="t" x="1300" y="926" font-size="11.5" fill="#9BA1A9">snapshot 2 min ago</text>
+    <text class="t" x="1512" y="926" font-size="11.5" fill="#69707C" text-anchor="end">UTF-8 · LF</text>
+  </g>
+
+  <rect x="64" y="64" width="1472" height="872" rx="14" fill="none" stroke="#262B33"/>
+</svg>

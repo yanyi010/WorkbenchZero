@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 
+use wz_common::MutexRecover;
+
 use crate::Kernel;
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,6 +43,8 @@ pub fn push_notification(
     source: Option<String>,
     actions: Vec<Value>,
 ) {
+    let title = wz_common::truncate_chars(title, 2000);
+    let body = wz_common::truncate_chars(body, 8000);
     let actions: Vec<NotificationAction> = actions
         .iter()
         .filter_map(|a| {
@@ -57,14 +61,14 @@ pub fn push_notification(
         .collect();
     let record = NotificationRecord {
         id: format!("notif-{}", uuid::Uuid::new_v4().simple()),
-        title: title.to_string(),
-        body: body.to_string(),
+        title: (*title).to_string(),
+        body: (*body).to_string(),
         source: source.clone(),
         actions,
         timestamp: Utc::now(),
     };
     {
-        let mut history = kernel.notifications.lock().unwrap();
+        let mut history = kernel.notifications.lock_or_recover();
         history.push(record.clone());
         let len = history.len();
         if len > HISTORY_CAP {

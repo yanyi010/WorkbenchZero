@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/common",
   "crates/permissions",
   "crates/commands",
   "crates/events",
@@ -17,12 +18,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+rust-version = "1.88"
 license = "MIT"
 authors = ["Workbench Zero contributors"]
 
 [workspace.dependencies]
+wz-common = { path = "crates/common" }
 wz-permissions = { path = "crates/permissions" }
 wz-commands = { path = "crates/commands" }
 wz-events = { path = "crates/events" }

@@ -1,52 +1,61 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" width="110" alt="Workbench Zero logo" />
+<img src="docs/assets/logo.png" width="96" alt="Workbench Zero logo" />
 
 # Workbench Zero
 
 **Your workbench. From zero.**
 
-A local-first personal workbench built entirely around plugins.\
-AI included, if you want it.
+A local-first personal workbench built entirely around plugins —\
+durable enough to hold years of your data. AI included, if you want it.
 
-[![CI](https://github.com/yanyi010/WorkbenchZero/actions/workflows/ci.yml/badge.svg)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/ci.yml)
-[![Release](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml/badge.svg)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/release.yml)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-Linux-informational)
-![Rust](https://img.shields.io/badge/Rust-1.85%2B-dea584)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-
-<img src="docs/assets/banner.png" width="820" alt="Workbench Zero banner" />
-
-[Quick start](#quick-start) · [First-party plugins](#first-party-plugins) · [Write a plugin](#write-a-plugin-in-30-seconds) · [Architecture](#architecture) · [Security model](#security-model) · [Docs](#documentation)
+[![Version](https://img.shields.io/badge/release-1.0.0-5E8CFF?style=flat-square)](https://github.com/yanyi010/WorkbenchZero/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/yanyi010/WorkbenchZero/ci.yml?branch=dev%2Fworkbench-zero-v0.1&style=flat-square&label=ci)](https://github.com/yanyi010/WorkbenchZero/actions/workflows/ci.yml)
+![License](https://img.shields.io/badge/license-MIT-39404B?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Linux-39404B?style=flat-square)
+![Rust](https://img.shields.io/badge/Rust-1.88%2B-39404B?style=flat-square)
 
 </div>
 
+<img src="docs/assets/hero.png" alt="Workbench Zero shell: a workspace with memos, tasks, a sticky card, streaming AI, and a terminal" width="100%" />
+
+<p align="center">
+<sub>
+⌘K palette · Alt+Space quick capture · ⌘P search — the whole shell, keyboard-first.
+</sub>
+</p>
+
 ---
 
-Workbench Zero is a desktop workbench where **everything is a plugin** — notes,
-tasks, files, terminals, and (optionally) AI chat. A small, fast Rust kernel
-coordinates capabilities; plugins run sandboxed and permission-scoped; all of
-your data lives in a folder you own.
+## What it is
 
-- **Local-first.** Your workspace is a plain directory of Markdown and JSON. No
-  accounts, no cloud, no lock-in. Back it up with `rsync`, version it with
-  `git`, inspect it with `cat`.
-- **Everything is a plugin.** The shell ships almost no features. Memo, Tasks,
-  Files, Terminal — all plugins, all removable, all replaceable by yours.
-- **AI included, if you want it.** The `zero.ai` plugin talks to any
-  OpenAI-compatible endpoint you configure. No telemetry, no bundled API keys,
-  and the plugin is as optional as every other one.
-- **Deny-by-default permissions.** Plugins declare capabilities
-  (`workspace:read`, `process:spawn`, …); the kernel enforces the closed set.
-- **Sandboxed by construction.** Plugin UI runs in cross-origin `wzp://`
-  iframes with `connect-src 'none'` — no network, no DOM access to the shell.
+Notes apps die. Sync services change their terms. "Run this script" tools
+scatter your work across dotfiles. Workbench Zero takes the other bet: a
+**boring, inspectable core** — a directory of Markdown and JSON, coordinated
+by a small Rust kernel — where every feature, including memo and AI chat, is
+a sandboxed plugin you could replace tomorrow.
+
+<img src="docs/assets/features.png" alt="Local-first plain files · everything is a plugin · durable by default" width="100%" />
+
+## Data safety
+
+Your data lives in a plain folder you own, and the kernel treats it like a
+database would: **atomic, fsynced writes**, corrupt files **quarantined
+instead of reset**, a **derived index that repairs itself**, and **automatic
+snapshots** under `.workbench/backups/`.
+
+<img src="docs/assets/data-safety.png" alt="Three crash stories: power loss mid-write, a state file gone bad, a corrupt index — and how each ends" width="100%" />
+
+The full contract — what snapshots cover, what they deliberately don't — is
+in [docs/data-safety](docs/data-safety/README.md) and
+[ADR-0009](docs/adr/ADR-0009-durability-and-snapshots.md). Every guarantee
+has a regression test.
 
 ## First-party plugins
 
 | Plugin | What it does | Data it owns |
 | --- | --- | --- |
-| `zero.memo` | Markdown memos with front matter, wiki-style search | `Memos/*.md` |
+| `zero.memo` | Markdown memos with front matter and full-text search | `Memos/*.md` |
 | `zero.tasks` | Task list with `!prio @project #tag ~due` quick syntax | `Tasks/tasks.json` |
 | `zero.sticky` | Desktop stickies, convertible to memos and tasks | `Stickies/*.md` |
 | `zero.files` | Workspace file tree with rename / move / delete | your files |
@@ -58,98 +67,103 @@ Three example plugins (`community.hello-plugin`, `community.pomodoro`,
 
 ## Quick start
 
-> Pre-built `.deb` / `.AppImage` artifacts are attached to every
-> [release](https://github.com/yanyi010/WorkbenchZero/releases). Linux only
-> for now (WebKitGTK); macOS and Windows build paths are wired but untested.
+> Pre-built, signed `.deb` / `.AppImage` artifacts (with `SHA256SUMS.txt`)
+> are attached to every
+> [release](https://github.com/yanyi010/WorkbenchZero/releases). Linux for
+> now (WebKitGTK); the bundler config is architecture-clean and a
+> macOS/Windows matrix is planned.
 
-From source (Node 22+, Rust 1.85+, `libwebkit2gtk-4.1-dev`):
+From source (Node 22+, Rust 1.88+, `libwebkit2gtk-4.1-dev`):
 
 ```bash
 git clone https://github.com/yanyi010/WorkbenchZero.git
 cd WorkbenchZero
 npm install
 npm run build        # plugins → registry → vite
-npm run dev          # or: cargo tauri dev
+npm run dev
 ```
 
-First launch asks for a workspace folder and a starter pack — that's the whole
-onboarding. `Ctrl+K` opens the command palette, `Alt+Space` is quick capture,
-`Ctrl+P` searches the workspace.
+First launch asks for a workspace folder and a starter pack — that's the
+whole onboarding.
+
+<img src="docs/assets/palette.png" alt="The command palette: every command discoverable and keystrokeable" width="100%" />
 
 ## Write a plugin in 30 seconds
 
 ```bash
-npx wb create my-first-plugin   # scaffold
-npx wb dev my-first-plugin      # hot-reload into the running app
-npx wb pack my-first-plugin     # → my-first-plugin.wzplugin.zip
+npm run wb -- plugin create my-first-plugin   # scaffold + manifest
+npm run wb -- plugin dev my-first-plugin      # hot-reload into the running app
+npm run wb -- plugin pack my-first-plugin     # → my-first-plugin.wzplugin.zip
 ```
 
-A plugin is four files: `plugin.json` (manifest + permissions), `entry.html`,
-`style.css`, and `src/main.ts`:
+A plugin is four files — `plugin.json` (manifest + declared permissions),
+`entry.html`, `style.css`, `src/main.ts`:
 
 ```ts
 import { definePlugin } from '@workbench-zero/plugin-sdk'
 
-export default definePlugin({
-  commands: [{
-    id: 'hello',
-    title: 'Say hello',
-    handler: ctx => ctx.ui.notify('Hello from my first plugin!'),
-  }],
+definePlugin({
+  activate(ctx) {
+    ctx.commands.onCommand((id) => {
+      if (id !== 'example.first.hello') return undefined
+      void ctx.notify.show({ title: 'Hello', body: 'Hello from my first plugin!' })
+      return 'ok'
+    })
+  },
 })
 ```
 
-Full API — UI surfaces, settings, workspace files, events, AI tools — is
-documented in [`docs/plugin-api`](docs/plugin-api/README.md). Contribution
-points, permissions and packaging are covered in
-[`docs/contribution-points`](docs/contribution-points/README.md) and
-[`docs/permissions`](docs/permissions/README.md).
+The command id is declared in the manifest; the palette finds it. The full
+API — views, settings, workspace files, streaming network, AI tools — is in
+[docs/plugin-api](docs/plugin-api/README.md); contribution points and
+packaging in [docs/contribution-points](docs/contribution-points/README.md).
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────────────┐
-│ Workbench Zero shell (TypeScript / React, Tauri webview)│
-│   palette · quick capture · search · settings · welcome │
-└──────────────▲─────────────────────────▲───────────────┘
-       kernel_rpc(token, payload)   window.__kernelInbox(batch)
-┌──────────────┴─────────────────────────┴───────────────┐
-│ wz-kernel (Rust): settings · workspaces · commands ·    │
-│ events · search · artifacts · secrets · plugin runtime  │
-└──────────────▲─────────────────────────▲───────────────┘
-   single JSON-RPC-ish dispatcher   batched push (seq)
-┌──────────────┴─────────────────────────┴───────────────┐
-│ plugin iframes (wzp://<id>/…, cross-origin sandbox)    │
-│   zero.memo · zero.tasks · zero.files · zero.terminal … │
-└─────────────────────────────────────────────────────────┘
-```
+One JSON-RPC-ish dispatcher with a first-caller token; one monotonically
+sequenced push inbox; sandboxed plugin iframes. That is the whole wire
+surface:
 
-One command (`kernel_rpc`), a first-caller token, an audited TypeScript
-protocol mirror, and a batched inbox — the whole wire surface. Decisions are
-recorded in [ADRs](docs/adr/); start with
+<img src="docs/assets/architecture.png" alt="Architecture: shell, Rust kernel, sandboxed plugin iframes — one dispatcher in, one push channel out" width="100%" />
+
+Decisions are recorded in [ADRs](docs/adr/); start with
 [ADR-0001](docs/adr/ADR-0001-rust-kernel-workspace.md).
 
 ## Security model
 
-- Plugins are cross-origin iframes served from `wzp://` with a strict CSP
+<img src="docs/assets/sandbox.png" alt="One call, one gate: caller stamp, permission grant, canonical path — checked by the kernel on every call" width="100%" />
+
+- Plugin UI runs in cross-origin `wzp://` iframes with a strict CSP
   (`connect-src 'none'`); the shell is unreachable from plugin DOM.
-- Permissions are a closed, versioned set, deny-by-default, granted at install
-  time (see [docs/permissions](docs/permissions/README.md)).
-- Secrets live in the OS keychain (with an encrypted-at-rest file fallback).
-- Paths are contained: no `..`, no absolute escapes, no symlink tricks —
-  enforced in Rust, covered by tests.
+- Permissions are a closed, versioned set, deny-by-default; an upgrade that
+  widens a grant requires re-approval.
+- Shell-only RPCs cover plugin lifecycle, workspace management and
+  diagnostics export; AI invocation and secret writes have their own grants.
+- Secrets live in the OS keychain, with a permission-locked (`0600`) file
+  fallback.
+
+See [docs/permissions](docs/permissions/README.md) and
+[SECURITY.md](SECURITY.md) — please report vulnerabilities privately.
+
+## Stability guarantees (1.0)
+
+Within a major version: the kernel RPC method set is append-only; the bridge
+protocol stays at `apiVersion: "1"`, and plugins built for it keep working;
+the on-disk workspace format only moves forward with explicit, backed-up
+migrations. Details in [docs/plugin-api](docs/plugin-api/README.md#stability).
 
 ## Development
 
 ```bash
 npm run typecheck && npx eslint . && npx vitest run   # TS gates
-cargo fmt --all --check && cargo clippy --workspace --all-targets
+cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace                                 # Rust gates
 ```
 
-All gates run on every PR ([CI](.github/workflows/ci.yml)). See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, and
-[docs/architecture](docs/architecture/README.md) for the guided tour.
+Every gate runs on every PR, plus MSRV (1.88), `cargo audit`, `npm audit`, a
+deterministic plugin-build check, and CLI smoke tests
+([CI](.github/workflows/ci.yml)). Contributing:
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
@@ -157,7 +171,8 @@ All gates run on every PR ([CI](.github/workflows/ci.yml)). See
 - [Plugin API reference](docs/plugin-api/README.md)
 - [Contribution points](docs/contribution-points/README.md)
 - [Permission model](docs/permissions/README.md)
-- [ADRs 0001–0008](docs/adr/) — every structural decision, with context
+- [Data safety contract](docs/data-safety/README.md)
+- [ADRs 0001–0009](docs/adr/) — every structural decision, with context
 
 ## License
 

@@ -14,10 +14,13 @@
 //! known workspaces and recency. Schema changes use explicit migrations with
 //! backup before destructive steps (spec §69).
 
+pub mod backup;
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use wz_common::{atomic_write_str, load_json, JsonLoad};
 
 /// Current workspace format schema version (spec §101: explicit, independent).
 pub const WORKSPACE_SCHEMA_VERSION: i64 = 1;
@@ -92,15 +95,22 @@ pub struct WorkspaceManager {
 
 impl WorkspaceManager {
     pub fn new(registry_path: PathBuf) -> Result<Self, WorkspaceError> {
-        let records = if registry_path.exists() {
-            let raw = std::fs::read_to_string(&registry_path)?;
-            if raw.trim().is_empty() {
+        // The registry is user-browsable canon, but a corrupt registry must
+        // never prevent startup: quarantine it and start from an empty list.
+        // `.workbench/workspace.json` inside each workspace stays the source
+        // of truth, so nothing is lost — workspaces can simply be re-added.
+        let records: Vec<WorkspaceRecord> = match load_json(&registry_path)
+            .map_err(|e| WorkspaceError::Registry(e.to_string()))?
+        {
+            JsonLoad::Loaded(r) | JsonLoad::RecoveredFromTmp(r) => r,
+            JsonLoad::Missing => Vec::new(),
+            JsonLoad::Corrupt { quarantined_to } => {
+                tracing::error!(
+                    quarantined = %quarantined_to.display(),
+                    "workspace registry corrupt; workspaces preserved on disk, re-add them via `workspace.register`"
+                );
                 Vec::new()
-            } else {
-                serde_json::from_str(&raw)?
             }
-        } else {
-            Vec::new()
         };
         Ok(Self {
             registry_path,
@@ -112,9 +122,10 @@ impl WorkspaceManager {
         if let Some(parent) = self.registry_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let tmp = self.registry_path.with_extension("tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(&self.records)?)?;
-        std::fs::rename(&tmp, &self.registry_path)?;
+        atomic_write_str(
+            &self.registry_path,
+            &serde_json::to_string_pretty(&self.records)?,
+        )?;
         Ok(())
     }
 
@@ -182,15 +193,7 @@ impl WorkspaceManager {
         if !root.is_dir() {
             return Err(WorkspaceError::NotADirectory(root));
         }
-        let workbench = root.join(".workbench");
-        let meta_path = workbench.join("workspace.json");
-        if !meta_path.exists() {
-            return Err(WorkspaceError::Corrupt(format!(
-                "`{}` is not a workspace (missing .workbench/workspace.json)",
-                root.display()
-            )));
-        }
-        let meta: WorkspaceMeta = serde_json::from_str(&std::fs::read_to_string(&meta_path)?)?;
+        let meta = Self::read_meta(&root)?;
         if meta.schema_version > WORKSPACE_SCHEMA_VERSION {
             return Err(WorkspaceError::NewerSchema(
                 meta.schema_version,
@@ -220,14 +223,7 @@ impl WorkspaceManager {
             return Err(WorkspaceError::RootMissing(record.root));
         }
         let workbench = record.root.join(".workbench");
-        let meta_path = workbench.join("workspace.json");
-        if !meta_path.exists() {
-            return Err(WorkspaceError::Corrupt(format!(
-                "workspace at `{}` lost its .workbench/workspace.json",
-                record.root.display()
-            )));
-        }
-        let meta: WorkspaceMeta = serde_json::from_str(&std::fs::read_to_string(&meta_path)?)?;
+        let meta = Self::read_meta(&record.root)?;
         if meta.schema_version > WORKSPACE_SCHEMA_VERSION {
             return Err(WorkspaceError::NewerSchema(
                 meta.schema_version,
@@ -248,6 +244,31 @@ impl WorkspaceManager {
     pub fn remove(&mut self, id: &str) -> Result<(), WorkspaceError> {
         self.records.retain(|r| r.id != id);
         self.save_registry()
+    }
+
+    /// Read `.workbench/workspace.json` resiliently. A corrupt meta file is
+    /// quarantined and reported; an interrupted write heals from its sibling.
+    fn read_meta(root: &Path) -> Result<WorkspaceMeta, WorkspaceError> {
+        let meta_path = root.join(".workbench").join("workspace.json");
+        if !meta_path.exists() {
+            return Err(WorkspaceError::Corrupt(format!(
+                "`{}` is not a workspace (missing .workbench/workspace.json)",
+                root.display()
+            )));
+        }
+        match load_json::<WorkspaceMeta>(&meta_path)
+            .map_err(|e| WorkspaceError::Corrupt(e.to_string()))?
+        {
+            JsonLoad::Loaded(m) | JsonLoad::RecoveredFromTmp(m) => Ok(m),
+            JsonLoad::Missing => Err(WorkspaceError::Corrupt(format!(
+                "workspace meta at `{}` is empty",
+                meta_path.display()
+            ))),
+            JsonLoad::Corrupt { quarantined_to } => Err(WorkspaceError::Corrupt(format!(
+                "workspace meta corrupt; quarantined to `{}`",
+                quarantined_to.display()
+            ))),
+        }
     }
 
     fn materialize(&self, record: WorkspaceRecord) -> Result<Workspace, WorkspaceError> {
@@ -295,6 +316,62 @@ pub fn apply_sqlite_migrations(conn: &rusqlite::Connection) -> rusqlite::Result<
     Ok(())
 }
 
+/// Open the workspace index database with production pragmas:
+/// WAL for crash resilience and concurrent readers, `synchronous=NORMAL`
+/// (safe under WAL), a busy timeout for external tools, integrity check on
+/// open. The index is **derived data** (spec §8): if the file is corrupt it
+/// is backed up aside and rebuilt empty rather than blocking workspace open.
+pub fn open_index_db(path: &Path) -> Result<rusqlite::Connection, WorkspaceError> {
+    open_index_db_attempt(path, true)
+}
+
+fn open_index_db_attempt(
+    path: &Path,
+    allow_rebuild: bool,
+) -> Result<rusqlite::Connection, WorkspaceError> {
+    match try_open_index_db(path) {
+        Ok(conn) => Ok(conn),
+        Err(reason) if allow_rebuild => {
+            tracing::error!(
+                path = %path.display(),
+                reason = %reason,
+                "index.sqlite failed validation; backing up and rebuilding"
+            );
+            backup_sqlite(path)?;
+            std::fs::remove_file(path)?;
+            for ext in ["wal", "shm"] {
+                let side = path.with_extension(ext);
+                if side.exists() {
+                    std::fs::remove_file(&side)?;
+                }
+            }
+            open_index_db_attempt(path, false)
+        }
+        Err(reason) => Err(WorkspaceError::Corrupt(format!(
+            "index.sqlite unusable even after rebuild: {reason}"
+        ))),
+    }
+}
+
+/// Open + configure + validate the index db. Any failure is returned as a
+/// human-readable reason so the caller can rebuild derived data.
+fn try_open_index_db(path: &Path) -> Result<rusqlite::Connection, String> {
+    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    conn.pragma_update(None, "journal_mode", "WAL")
+        .and_then(|_| conn.pragma_update(None, "synchronous", "NORMAL"))
+        .and_then(|_| conn.pragma_update(None, "busy_timeout", 5000))
+        .and_then(|_| conn.pragma_update(None, "foreign_keys", "ON"))
+        .map_err(|e| e.to_string())?;
+    // Integrity check (bounded: the index is small in practice).
+    let integrity: String = conn
+        .pragma_query_value(None, "integrity_check", |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if integrity != "ok" {
+        return Err(format!("integrity_check: {integrity}"));
+    }
+    Ok(conn)
+}
+
 /// Back up a database file before a destructive migration (spec §69).
 pub fn backup_sqlite(path: &Path) -> Result<Option<PathBuf>, WorkspaceError> {
     if !path.exists() {
@@ -315,9 +392,7 @@ fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), WorkspaceErr
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, serde_json::to_string_pretty(value)?)?;
-    std::fs::rename(&tmp, path)?;
+    atomic_write_str(path, &serde_json::to_string_pretty(value)?)?;
     Ok(())
 }
 
@@ -410,5 +485,51 @@ mod tests {
         assert!(ws.load_layout().is_null());
         ws.save_layout(&serde_json::json!({"tabs": []})).unwrap();
         assert_eq!(ws.load_layout()["tabs"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn index_db_pragmas_and_wal() {
+        let base = temp();
+        let path = base.join("index.sqlite");
+        let conn = open_index_db(&path).unwrap();
+        let mode: String = conn
+            .pragma_query_value(None, "journal_mode", |r| r.get(0))
+            .unwrap();
+        assert_eq!(mode, "wal");
+        apply_sqlite_migrations(&conn).unwrap();
+        drop(conn);
+        // Reopens fine.
+        let conn = open_index_db(&path).unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, SQLITE_MIGRATIONS.len() as i64);
+    }
+
+    #[test]
+    fn corrupt_index_db_is_rebuilt_with_backup() {
+        let base = temp();
+        let path = base.join("index.sqlite");
+        // Not even a sqlite header.
+        std::fs::write(&path, b"definitely not sqlite").unwrap();
+        let conn = open_index_db(&path).unwrap();
+        apply_sqlite_migrations(&conn).unwrap();
+        drop(conn);
+        // The corrupt file was preserved as a .bak-* sibling.
+        let backups: Vec<_> = std::fs::read_dir(&base)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with("index.bak-"))
+            .collect();
+        assert_eq!(
+            backups.len(),
+            1,
+            "corrupt db must be backed up, got {backups:?}"
+        );
+        let conn = open_index_db(&path).unwrap();
+        let integrity: String = conn
+            .pragma_query_value(None, "integrity_check", |r| r.get(0))
+            .unwrap();
+        assert_eq!(integrity, "ok");
     }
 }

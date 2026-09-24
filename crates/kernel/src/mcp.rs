@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
+use wz_common::{atomic_write_str, load_json, JsonLoad, MutexRecover};
 
 use crate::{CallerCtx, KResult, Kernel, KernelError};
 
@@ -45,6 +46,11 @@ pub struct McpConnection {
 pub struct McpManager {
     config_path: Mutex<Option<PathBuf>>,
     connections: Mutex<HashMap<String, Arc<Mutex<McpConnection>>>>,
+    /// Serializes config read-modify-write so concurrent mutations cannot
+    /// lose each other.
+    config_ops: Mutex<()>,
+    /// Servers currently mid-handshake (connect TOCTOU guard).
+    connecting: Mutex<std::collections::HashSet<String>>,
 }
 
 impl Default for McpManager {
@@ -58,31 +64,42 @@ impl McpManager {
         Self {
             config_path: Mutex::new(None),
             connections: Mutex::new(HashMap::new()),
+            config_ops: Mutex::new(()),
+            connecting: Mutex::new(std::collections::HashSet::new()),
         }
     }
 
     pub fn set_config_path(&self, path: PathBuf) {
-        *self.config_path.lock().unwrap() = Some(path);
+        *self.config_path.lock_or_recover() = Some(path);
     }
 
     fn read_config(&self) -> Vec<ServerConfig> {
-        let path = self.config_path.lock().unwrap().clone();
+        let path = self.config_path.lock_or_recover().clone();
         let Some(path) = path else { return vec![] };
-        match std::fs::read_to_string(path) {
-            Ok(raw) if !raw.trim().is_empty() => serde_json::from_str(&raw).unwrap_or_default(),
-            _ => vec![],
+        match load_json(&path) {
+            Ok(JsonLoad::Loaded(v)) | Ok(JsonLoad::RecoveredFromTmp(v)) => v,
+            Ok(JsonLoad::Missing) => vec![],
+            Ok(JsonLoad::Corrupt { quarantined_to }) => {
+                tracing::error!(quarantined = %quarantined_to.display(), "mcp config corrupt; servers list reset, corrupt copy preserved");
+                vec![]
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "mcp config unreadable");
+                vec![]
+            }
         }
     }
 
+    /// Caller must hold `config_ops`.
     fn write_config(&self, servers: &[ServerConfig]) -> KResult<()> {
-        let path = self.config_path.lock().unwrap().clone();
+        let path = self.config_path.lock_or_recover().clone();
         let Some(path) = path else {
             return Err(KernelError::Message("mcp config path not set".into()));
         };
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&path, serde_json::to_string_pretty(servers)?)
+        atomic_write_str(&path, &serde_json::to_string_pretty(servers)?)
             .map_err(|e| KernelError::Message(format!("cannot write mcp config: {e}")))?;
         Ok(())
     }
@@ -92,6 +109,7 @@ impl McpManager {
     }
 
     pub fn add_server(&self, name: &str, command: &str, args: &[String]) -> KResult<()> {
+        let _op = self.config_ops.lock_or_recover();
         let mut servers = self.read_config();
         if servers.iter().any(|s| s.name == name) {
             return Err(KernelError::Message(format!(
@@ -108,6 +126,7 @@ impl McpManager {
     }
 
     pub fn remove_server(&self, name: &str) -> KResult<()> {
+        let _op = self.config_ops.lock_or_recover();
         let mut servers = self.read_config();
         servers.retain(|s| s.name != name);
         self.write_config(&servers)?;
@@ -115,6 +134,7 @@ impl McpManager {
     }
 
     pub fn set_server_enabled(&self, name: &str, enabled: bool) -> KResult<()> {
+        let _op = self.config_ops.lock_or_recover();
         let mut servers = self.read_config();
         for s in &mut servers {
             if s.name == name {
@@ -129,9 +149,9 @@ impl McpManager {
     }
 
     pub fn shutdown(&self) -> Result<(), KernelError> {
-        let conns: Vec<_> = self.connections.lock().unwrap().drain().collect();
+        let conns: Vec<_> = self.connections.lock_or_recover().drain().collect();
         for (_, conn) in conns {
-            let mut guard = conn.lock().unwrap();
+            let mut guard = conn.lock_or_recover();
             let _ = guard.child.kill();
             let _ = guard.child.wait();
         }
@@ -139,8 +159,8 @@ impl McpManager {
     }
 
     pub fn disconnect(&self, name: &str) -> KResult<()> {
-        if let Some(conn) = self.connections.lock().unwrap().remove(name) {
-            let mut guard = conn.lock().unwrap();
+        if let Some(conn) = self.connections.lock_or_recover().remove(name) {
+            let mut guard = conn.lock_or_recover();
             let _ = guard.child.kill();
             let _ = guard.child.wait();
         }
@@ -149,7 +169,7 @@ impl McpManager {
 
     pub fn status(&self) -> Vec<Value> {
         let servers = self.read_config();
-        let connections = self.connections.lock().unwrap();
+        let connections = self.connections.lock_or_recover();
         servers
             .into_iter()
             .map(|s| {
@@ -166,11 +186,27 @@ impl McpManager {
     }
 
     /// Connect (spawn + initialize + tools/list) one configured server.
+    ///
+    /// The `connecting` set makes the check-then-spawn atomic: two parallel
+    /// connects can never spawn duplicate children or leak a reader thread.
     pub fn connect(&self, name: &str) -> KResult<Value> {
-        if let Some(existing) = self.connections.lock().unwrap().get(name) {
-            let _guard = existing.lock().unwrap();
+        if self.connections.lock_or_recover().contains_key(name) {
             return Ok(json!({ "name": name, "alreadyConnected": true }));
         }
+        {
+            let mut connecting = self.connecting.lock_or_recover();
+            if !connecting.insert(name.to_string()) {
+                return Err(KernelError::Message(format!(
+                    "mcp server `{name}` is already connecting"
+                )));
+            }
+        }
+        let result = self.connect_inner(name);
+        self.connecting.lock_or_recover().remove(name);
+        result
+    }
+
+    fn connect_inner(&self, name: &str) -> KResult<Value> {
         let config = self
             .read_config()
             .into_iter()
@@ -227,17 +263,27 @@ impl McpManager {
                         continue;
                     };
                     if let Some(id) = msg.get("id").and_then(|v| v.as_u64()) {
-                        if let Some(tx) = reader_conn
-                            .lock()
-                            .unwrap()
+                        let tx = reader_conn
+                            .lock_or_recover()
                             .pending
-                            .lock()
-                            .unwrap()
-                            .remove(&id)
-                        {
+                            .lock_or_recover()
+                            .remove(&id);
+                        if let Some(tx) = tx {
                             let _ = tx.send(msg);
                         }
                     }
+                }
+                // The server closed stdout: fail all pending waiters so no
+                // caller hangs until the 120s timeout.
+                let leftover: Vec<_> = reader_conn
+                    .lock_or_recover()
+                    .pending
+                    .lock_or_recover()
+                    .drain()
+                    .collect();
+                for (_, tx) in leftover {
+                    let _ =
+                        tx.send(json!({"error": {"message": "mcp server closed the connection"}}));
                 }
             })
             .map_err(|e| KernelError::Message(format!("cannot spawn reader: {e}")))?;
@@ -249,11 +295,11 @@ impl McpManager {
             json!({
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": { "name": "workbench-zero", "version": "0.1.0" }
+                "clientInfo": { "name": "workbench-zero", "version": env!("CARGO_PKG_VERSION") }
             }),
         )?;
         {
-            let mut guard = conn.lock().unwrap();
+            let mut guard = conn.lock_or_recover();
             guard.server_info = init_result
                 .get("serverInfo")
                 .cloned()
@@ -267,12 +313,11 @@ impl McpManager {
             .cloned()
             .unwrap_or_default();
         {
-            let mut guard = conn.lock().unwrap();
+            let mut guard = conn.lock_or_recover();
             guard.tools = tools.clone();
         }
         self.connections
-            .lock()
-            .unwrap()
+            .lock_or_recover()
             .insert(name.to_string(), conn.clone());
         Ok(json!({
             "name": name,
@@ -287,7 +332,7 @@ impl McpManager {
         let connections = self.connections.lock().unwrap();
         let mut out = vec![];
         for (server, conn) in connections.iter() {
-            let guard = conn.lock().unwrap();
+            let guard = conn.lock_or_recover();
             for tool in &guard.tools {
                 out.push(json!({
                     "server": server,
@@ -334,7 +379,7 @@ fn notify(conn: &Arc<Mutex<McpConnection>>, method: &str, params: Value) -> KRes
 }
 
 fn send_raw(conn: &Arc<Mutex<McpConnection>>, msg: Value) -> KResult<()> {
-    let mut guard = conn.lock().unwrap();
+    let mut guard = conn.lock_or_recover();
     serde_json::to_writer(&mut guard.stdin, &msg)
         .map_err(|e| KernelError::Message(format!("mcp write failed: {e}")))?;
     guard
@@ -350,10 +395,10 @@ fn send_raw(conn: &Arc<Mutex<McpConnection>>, msg: Value) -> KResult<()> {
 /// JSON-RPC request with response correlation through the reader thread.
 fn call(conn: &Arc<Mutex<McpConnection>>, method: &str, params: Value) -> KResult<Value> {
     let (id, rx) = {
-        let mut guard = conn.lock().unwrap();
+        let mut guard = conn.lock_or_recover();
         let id = guard.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = std::sync::mpsc::channel();
-        guard.pending.lock().unwrap().insert(id, tx);
+        guard.pending.lock_or_recover().insert(id, tx);
         let request = json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -382,7 +427,7 @@ fn call(conn: &Arc<Mutex<McpConnection>>, method: &str, params: Value) -> KResul
             Ok(response.get("result").cloned().unwrap_or(Value::Null))
         }
         Err(_) => {
-            conn.lock().unwrap().pending.lock().unwrap().remove(&id);
+            conn.lock_or_recover().pending.lock_or_recover().remove(&id);
             Err(KernelError::Message(format!(
                 "mcp call `{method}` timed out or connection closed (limit {}s)",
                 CALL_TIMEOUT.as_secs()

@@ -79,21 +79,26 @@ fn push_sink(app: tauri::AppHandle) -> PushSinkFn {
 /// Serve plugin package files: `wzp://<pluginId>/<path>?surface=...`.
 /// Path containment: the resolved file must live inside the plugin's install
 /// directory; symlinks are resolved before the check.
+/// Builder helpers never panic: this is the security boundary between
+/// plugin code and the local filesystem, and a panicking handler terminating
+/// the webview's protocol thread is a worse failure than a 500.
+fn response(status: u16, mime: &str, body: Vec<u8>) -> Response<Cow<'static, [u8]>> {
+    Response::builder()
+        .status(status)
+        .header("Content-Type", mime)
+        .body(Cow::Owned(body))
+        .unwrap_or_else(|_| {
+            // Invariant fallback: static status/headers cannot fail.
+            Response::new(Cow::Owned(Vec::new()))
+        })
+}
+
 fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     let bad_request = |msg: &str| -> Response<Cow<'static, [u8]>> {
-        Response::builder()
-            .status(400)
-            .header("Content-Type", "text/plain")
-            .body(Cow::Owned(msg.as_bytes().to_vec()))
-            .unwrap()
+        response(400, "text/plain", msg.as_bytes().to_vec())
     };
-    let not_found = || -> Response<Cow<'static, [u8]>> {
-        Response::builder()
-            .status(404)
-            .header("Content-Type", "text/plain")
-            .body(Cow::Owned(b"not found".to_vec()))
-            .unwrap()
-    };
+    let not_found =
+        || -> Response<Cow<'static, [u8]>> { response(404, "text/plain", b"not found".to_vec()) };
 
     let rest = uri.strip_prefix(&format!("{WZP_SCHEME}://")).unwrap_or("");
     let (host, path_query) = match rest.split_once('/') {
@@ -109,6 +114,12 @@ fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
     let Some(record) = kernel.plugins.get(&plugin_id) else {
         return not_found();
     };
+    // Only installed plugins have servable assets: a Discovered or
+    // Uninstalled plugin's files on disk are inert and must not be reachable
+    // through the protocol handler.
+    if !record.is_installed() {
+        return not_found();
+    }
     let base = record.install_path;
     let rel = path.trim_start_matches('/');
     if rel.is_empty() {
@@ -137,21 +148,23 @@ fn serve_wzp(kernel: &Kernel, uri: &str) -> Response<Cow<'static, [u8]>> {
         return not_found();
     };
     let mime = mime_for(&canonical);
-    let mut builder = Response::builder()
-        .status(200)
-        .header("Content-Type", mime)
-        .header("Cache-Control", "no-cache");
+    let mut resp = response(200, mime, bytes);
+    resp.headers_mut().insert(
+        "Cache-Control",
+        "no-cache"
+            .parse()
+            .unwrap_or_else(|_| tauri::http::HeaderValue::from_static("no-cache")),
+    );
     if mime.starts_with("text/html") {
         // Strict plugin sandbox: scripts only from the plugin origin, no
         // direct network from plugin frames (bridged through the kernel).
-        builder = builder.header(
-            "Content-Security-Policy",
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
-             img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; \
-             object-src 'none'; base-uri 'none'; form-action 'none'",
-        );
+        if let Ok(v) = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';              img-src 'self' data: blob:; font-src 'self'; connect-src 'none';              object-src 'none'; base-uri 'none'; form-action 'none'"
+            .parse()
+        {
+            resp.headers_mut().insert("Content-Security-Policy", v);
+        }
     }
-    builder.body(Cow::Owned(bytes)).unwrap()
+    resp
 }
 
 fn mime_for(path: &Path) -> &'static str {
@@ -239,7 +252,12 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running Workbench Zero");
+        .unwrap_or_else(|e| {
+            // Event-loop teardown after an unrecoverable error. State writes
+            // are write-through and fsynced, so nothing is lost by exiting.
+            eprintln!("fatal: Workbench Zero terminated: {e}");
+            std::process::exit(1);
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -283,9 +301,19 @@ mod tests {
         .unwrap()
     }
 
+    /// Plugins only become servable once installed (spec lifecycle).
+    fn installed_kernel() -> Arc<Kernel> {
+        let kernel = test_kernel();
+        kernel
+            .plugins
+            .set_state("test.demo", wz_plugin_runtime::PluginState::Enabled)
+            .unwrap();
+        kernel
+    }
+
     #[test]
     fn edp_serves_entry_with_strict_csp() {
-        let kernel = test_kernel();
+        let kernel = installed_kernel();
         let resp = serve_wzp(&kernel, "wzp://test.demo/entry.html?surface=logic");
         assert_eq!(resp.status(), 200);
         assert_eq!(
@@ -306,7 +334,7 @@ mod tests {
 
     #[test]
     fn edp_serves_bundled_assets() {
-        let kernel = test_kernel();
+        let kernel = installed_kernel();
         let resp = serve_wzp(&kernel, "wzp://test.demo/dist/main.js");
         assert_eq!(resp.status(), 200);
         assert_eq!(
@@ -317,7 +345,7 @@ mod tests {
 
     #[test]
     fn edp_rejects_path_traversal() {
-        let kernel = test_kernel();
+        let kernel = installed_kernel();
         // `..` must not escape the plugin package.
         for uri in [
             "wzp://test.demo/../secret.txt",
@@ -348,8 +376,16 @@ mod tests {
     }
 
     #[test]
-    fn edp_empty_path_is_rejected() {
+    fn edp_discovered_plugin_not_served() {
         let kernel = test_kernel();
+        // Discovered (never installed) — assets must be unreachable.
+        let resp = serve_wzp(&kernel, "wzp://test.demo/entry.html");
+        assert_eq!(resp.status(), 404);
+    }
+
+    #[test]
+    fn edp_empty_path_is_rejected() {
+        let kernel = installed_kernel();
         let resp = serve_wzp(&kernel, "wzp://test.demo/");
         assert_eq!(resp.status(), 400);
     }

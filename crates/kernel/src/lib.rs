@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use once_cell::sync::Lazy;
 use wz_commands::CommandRegistry;
+use wz_common::{MutexRecover, RwLockRecover};
 use wz_events::EventBus;
 use wz_permissions::Evaluator;
 use wz_plugin_runtime::PluginManager;
@@ -40,16 +41,22 @@ pub static PLUGIN_LOGS: Lazy<ai_tools::PluginLogs> = Lazy::new(ai_tools::PluginL
 pub static PENDING_TOOL_CALLS: Lazy<ai_tools::PendingToolCalls> =
     Lazy::new(ai_tools::PendingToolCalls::new);
 
-/// Push messages flow kernel -> shell main frame in batches.
+/// Push messages flow kernel -> shell main frame in batches. This is the
+/// canonical wire shape mirrored by `@workbench-zero/protocol`
+/// (`PushMessage`); do not rename fields without bumping the API version.
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PushMessage {
+    /// Monotonic sequence number (per process) so the shell can detect gaps.
+    pub seq: u64,
     /// Topic: `event`, `plugin-state`, `notification`, `plugin-push`,
-    /// `shortcut`, `mcp-status`.
+    /// `pty`, `net`, `shortcut`, `mcp-status`.
     pub topic: String,
-    /// Target plugin id for `plugin-push` messages.
+    /// Target plugin id for plugin-addressed messages; absent for shell-wide.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub target: Option<String>,
-    pub payload: serde_json::Value,
+    pub plugin: Option<String>,
+    /// Topic-specific payload (opaque to the shell; routed by topic+plugin).
+    pub data: serde_json::Value,
 }
 
 pub type PushSink = Arc<dyn Fn(&[PushMessage]) + Send + Sync + 'static>;
@@ -270,6 +277,10 @@ impl Kernel {
         // Watch plugin directories for changes (hot reload / installs).
         watcher::start(kernel.clone());
 
+        // Automatic snapshot maintenance (every 10 minutes; snapshot when
+        // the configured interval has elapsed, plus on workspace close).
+        kernel.start_background_tasks();
+
         let startup_ms = startup.finish();
         kernel
             .diagnostics
@@ -327,6 +338,36 @@ impl Kernel {
                 default: Some(serde_json::json!(true)),
                 enum_values: vec![],
                 scope: Scope::Workspace,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.enabled".into(),
+                r#type: SettingType::Boolean,
+                title: "Automatic workspace snapshots".into(),
+                description: Some("Point-in-time copies of workspace metadata and plugin state, kept in .workbench/backups/.".into()),
+                default: Some(serde_json::json!(true)),
+                enum_values: vec![],
+                scope: Scope::Global,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.keep".into(),
+                r#type: SettingType::Number,
+                title: "Snapshots kept per workspace".into(),
+                description: Some("Oldest snapshots are pruned beyond this count.".into()),
+                default: Some(serde_json::json!(10)),
+                enum_values: vec![],
+                scope: Scope::Global,
+                plugin_id: None,
+            },
+            SettingDescriptor {
+                key: "core.backup.intervalHours".into(),
+                r#type: SettingType::Number,
+                title: "Snapshot interval (hours)".into(),
+                description: Some("A snapshot is taken on open/close and periodically while running when the last one is older than this.".into()),
+                default: Some(serde_json::json!(24)),
+                enum_values: vec![],
+                scope: Scope::Global,
                 plugin_id: None,
             },
             SettingDescriptor {
@@ -494,11 +535,15 @@ impl Kernel {
     /// Issue the RPC token to the first caller (the application shell, which
     /// calls this during bootstrap before any plugin iframe exists).
     pub fn issue_token(&self) -> KResult<String> {
-        let mut guard = self.token.write().unwrap();
-        if let Some(existing) = guard.as_ref() {
-            return Err(KernelError::Unauthorized(format!(
-                "token already issued ({existing})"
-            )));
+        let mut guard = self.token.write_or_recover();
+        if guard.is_some() {
+            // Never echo the issued token back, not even in an error message:
+            // `app.issueToken` is intentionally callable before auth, so its
+            // error text is observable by any frame that can reach
+            // `kernel_rpc`.
+            return Err(KernelError::Unauthorized(
+                "token already issued; only the shell may hold it".into(),
+            ));
         }
         let token = uuid::Uuid::new_v4().to_string();
         *guard = Some(token.clone());
@@ -506,9 +551,9 @@ impl Kernel {
     }
 
     pub fn check_token(&self, token: &str) -> KResult<()> {
-        let guard = self.token.read().unwrap();
+        let guard = self.token.read_or_recover();
         match guard.as_deref() {
-            Some(t) if t == token => Ok(()),
+            Some(t) if constant_time_eq(t, token) => Ok(()),
             Some(_) => Err(KernelError::Unauthorized("invalid token".into())),
             None => Err(KernelError::Unauthorized(
                 "token not issued yet; call app.issueToken first".into(),
@@ -555,7 +600,7 @@ impl Kernel {
     // -- workspace helpers ----------------------------------------------------
 
     pub fn current_workspace(&self) -> Option<Arc<WorkspaceState>> {
-        self.workspace_state.read().unwrap().clone()
+        self.workspace_state.read_or_recover().clone()
     }
 
     pub fn require_workspace(&self) -> KResult<Arc<WorkspaceState>> {
@@ -571,12 +616,15 @@ impl Kernel {
         self.net.abort_all();
 
         let ws = {
-            let mut mgr = self.workspaces.lock().unwrap();
+            let mut mgr = self.workspaces.lock_or_recover();
             mgr.open(id)
                 .map_err(|e| KernelError::Message(e.to_string()))?
         };
-        let conn = rusqlite::Connection::open(&ws.sqlite_path)
-            .map_err(|e| KernelError::Message(format!("cannot open index.sqlite: {e}")))?;
+        // Hardened open: WAL, busy timeout, integrity check, and an automatic
+        // backup+rebuild when the derived index is corrupt (never blocks the
+        // user from their own workspace).
+        let conn = wz_workspace::open_index_db(&ws.sqlite_path)
+            .map_err(|e| KernelError::Message(e.to_string()))?;
         wz_workspace::apply_sqlite_migrations(&conn)
             .map_err(|e| KernelError::Message(format!("migration failed: {e}")))?;
         wz_artifacts::ArtifactRegistry::init(&conn)
@@ -592,7 +640,8 @@ impl Kernel {
             .set_workspace(Some(state.workspace.settings_path.clone()))
             .map_err(|e| KernelError::Message(e.to_string()))?;
 
-        *self.workspace_state.write().unwrap() = Some(state.clone());
+        *self.workspace_state.write_or_recover() = Some(state.clone());
+        self.backup_if_due(false);
         self.events.emit(
             "workspace.opened",
             None,
@@ -602,14 +651,157 @@ impl Kernel {
         Ok(state)
     }
 
+    fn backup_enabled(&self) -> bool {
+        !matches!(
+            self.settings.get("core.backup.enabled"),
+            serde_json::Value::Bool(false)
+        )
+    }
+
+    fn backup_keep(&self) -> usize {
+        self.settings.get("core.backup.keep").as_u64().unwrap_or(10) as usize
+    }
+
+    fn backup_interval_hours(&self) -> f64 {
+        self.settings
+            .get("core.backup.intervalHours")
+            .as_f64()
+            .filter(|h| *h > 0.0)
+            .unwrap_or(24.0)
+    }
+
+    /// Was the last snapshot older than the configured interval?
+    fn backup_due(&self, ws: &wz_workspace::Workspace) -> bool {
+        let Some(latest) = wz_workspace::backup::list_snapshots(ws).into_iter().next() else {
+            return true; // never snapshotted
+        };
+        let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(&latest.created_at) else {
+            return true;
+        };
+        let age = chrono::Utc::now() - parsed.with_timezone(&chrono::Utc);
+        age.to_std()
+            .map(|d| d.as_secs_f64() >= self.backup_interval_hours() * 3600.0)
+            .unwrap_or(true)
+    }
+
+    /// Snapshot the current workspace if backups are enabled and due
+    /// (or `force`). Never fails the caller: backups are a safety net,
+    /// not a gate.
+    fn backup_if_due(&self, force: bool) {
+        if !self.backup_enabled() || self.shutting_down.load(Ordering::SeqCst) {
+            return;
+        }
+        let Some(state) = self.current_workspace() else {
+            return;
+        };
+        if !force && !self.backup_due(&state.workspace) {
+            return;
+        }
+        let keep = self.backup_keep();
+        // Hold the index connection lock: backup must be consistent with
+        // in-flight writes (VACUUM INTO traverses the live DB).
+        let conn = state.conn.lock_or_recover();
+        match wz_workspace::backup::create_snapshot(&state.workspace, &conn, keep) {
+            Ok(snap) => {
+                self.events.emit(
+                    "backup.created",
+                    None,
+                    serde_json::json!({ "id": snap.id, "bytes": snap.bytes, "path": snap.path }),
+                );
+                tracing::info!(workspace = %state.workspace.record.id, snapshot = %snap.id, "workspace snapshot created");
+            }
+            Err(e) => {
+                // Transient failures (disk full, a plugin hammering the
+                // state tree) must not crash anything — log and prepare
+                // to retry at the next interval.
+                tracing::error!(error = %e, workspace = %state.workspace.record.id, "automatic workspace snapshot failed");
+                self.events.emit(
+                    "backup.failed",
+                    None,
+                    serde_json::json!({ "error": e.to_string() }),
+                );
+            }
+        }
+    }
+
+    /// Background maintenance: periodic snapshot checks. Runs on the
+    /// kernel's own runtime and holds a weak reference so it never
+    /// extends the kernel's lifetime.
+    fn start_background_tasks(self: &Arc<Self>) {
+        let weak = Arc::downgrade(self);
+        self.runtime.spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(600));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tick.tick().await;
+                let Some(kernel) = weak.upgrade() else { break };
+                if kernel.shutting_down.load(Ordering::SeqCst) {
+                    break;
+                }
+                if let Err(e) =
+                    tokio::task::spawn_blocking(move || kernel.backup_if_due(false)).await
+                {
+                    tracing::warn!(error = %e, "backup reaper join error");
+                }
+            }
+        });
+    }
+
+    /// Explicit snapshot (Settings surface "Backup now").
+    pub fn backup_now(&self) -> KResult<wz_workspace::backup::SnapshotInfo> {
+        let state = self.require_workspace()?;
+        let keep = self.backup_keep();
+        let conn = state.conn.lock_or_recover();
+        wz_workspace::backup::create_snapshot(&state.workspace, &conn, keep)
+            .map_err(|e| KernelError::Message(e.to_string()))
+    }
+
+    pub fn list_backups(&self) -> KResult<Vec<wz_workspace::backup::SnapshotInfo>> {
+        let state = self.require_workspace()?;
+        Ok(wz_workspace::backup::list_snapshots(&state.workspace))
+    }
+
+    /// Restore a snapshot: closes the workspace, swaps `.workbench`, reopens.
+    pub fn restore_backup(&self, id: Option<&str>) -> KResult<()> {
+        let state = self.require_workspace()?;
+        let ws_id = state.workspace.record.id.clone();
+        let snap_id = match id {
+            Some(v) => v.to_string(),
+            None => {
+                wz_workspace::backup::list_snapshots(&state.workspace)
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| KernelError::Message("no snapshots to restore".into()))?
+                    .id
+            }
+        };
+        // Drop the live index connection before swapping the directory.
+        *self.workspace_state.write_or_recover() = None;
+        drop(state);
+        // Re-open transiently through the manager to resolve the workspace.
+        let ws = {
+            let mut mgr = self.workspaces.lock_or_recover();
+            mgr.open(&ws_id)
+                .map_err(|e| KernelError::Message(e.to_string()))?
+        };
+        wz_workspace::backup::restore_snapshot(&ws, &snap_id)
+            .map_err(|e| KernelError::Message(e.to_string()))?;
+        // Reopen fully (index rebuilds if needed by the hardened opener).
+        self.open_workspace(&ws_id)?;
+        Ok(())
+    }
+
     pub fn close_workspace(&self) -> KResult<()> {
         self.pty.kill_all();
         self.session.clear();
         self.net.abort_all();
+        // Final snapshot at the graceful point in the lifecycle — the
+        // session is drained and plugin state is settled.
+        self.backup_if_due(false);
         self.settings
             .set_workspace(None)
             .map_err(|e| KernelError::Message(e.to_string()))?;
-        *self.workspace_state.write().unwrap() = None;
+        *self.workspace_state.write_or_recover() = None;
         self.events
             .emit("workspace.closed", None, serde_json::json!({}));
         Ok(())
@@ -617,7 +809,7 @@ impl Kernel {
 
     pub fn plugin_store(&self, plugin_id: &str) -> KResult<Arc<PluginStateStore>> {
         let ws = self.require_workspace()?;
-        let mut stores = ws.plugin_stores.lock().unwrap();
+        let mut stores = ws.plugin_stores.lock_or_recover();
         if let Some(existing) = stores.get(plugin_id) {
             return Ok(existing.clone());
         }
@@ -638,6 +830,21 @@ impl Kernel {
             Ok(ws.workspace.root().join(p))
         }
     }
+}
+
+/// Constant-time string comparison for the RPC token. The token is a
+/// machine-local capability; timing attacks are far-fetched on localhost, but
+/// the comparison is cheap to get right and cheap to keep right.
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 static LOGGING_INIT: AtomicBool = AtomicBool::new(false);

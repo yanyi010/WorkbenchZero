@@ -287,6 +287,53 @@ describe('plugin-sdk bridge', () => {
     expect(ended).toBe(true);
   });
 
+  it('replays a stream that fully ended before fetchStream resolved', async () => {
+    const { host, mod } = await freshPlugin();
+
+    // The whole stream (chunks + net-end) arrives before the RPC returns —
+    // regression: the terminal callback must still fire exactly once.
+    host.on((msg) => {
+      if (msg.type !== 'wz-rpc' || msg.method !== 'network.fetchStream') return;
+      const id = msg.id as number;
+      host.send({
+        type: 'wz-push',
+        topic: 'net',
+        data: { kind: 'net-chunk', payload: { streamId: 'net-e', data: 'a' } },
+      });
+      host.send({
+        type: 'wz-push',
+        topic: 'net',
+        data: { kind: 'net-end', payload: { streamId: 'net-e' } },
+      });
+      setTimeout(() => host.rpcResult(id, true, { streamId: 'net-e' }), 10);
+    });
+
+    let ctx: import('./index').PluginContext | null = null;
+    mod.definePlugin({
+      activate(c) {
+        ctx = c;
+      },
+    });
+    host.init();
+    await vi.waitFor(() => expect(ctx).toBeTruthy());
+
+    const chunks: string[] = [];
+    let ended = 0;
+    let errored: string | null = null;
+    await ctx!.network.fetchStream(
+      'https://example.test/sse',
+      { method: 'GET' },
+      {
+        onChunk: (d) => chunks.push(d),
+        onEnd: () => ended++,
+        onError: (m) => (errored = m),
+      },
+    );
+    expect(chunks).toEqual(['a']);
+    expect(ended).toBe(1);
+    expect(errored).toBeNull();
+  });
+
   it('RPC errors surface as KernelRpcError rejections', async () => {
     const { host, mod } = await freshPlugin();
     host.on((msg) => {

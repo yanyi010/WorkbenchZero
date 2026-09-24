@@ -1,22 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Workbench Zero logo">
-  <!-- Workbench Zero — the zero rests on the workbench; modules are plugin slots. -->
+  <!-- Mark: the zero rests on a bench; the beam carries three plugin modules.
+       Flat engineered surfaces, a single accent. No gloss. -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1E293B"/>
-      <stop offset="1" stop-color="#0B1120"/>
-    </linearGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#38BDF8"/>
-      <stop offset="1" stop-color="#818CF8"/>
+    <linearGradient id="lzRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6E98FF"/>
+      <stop offset="1" stop-color="#4F74E8"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
-  <!-- workbench surface -->
-  <line x1="168" y1="712" x2="856" y2="712" stroke="#E2E8F0" stroke-width="42" stroke-linecap="round"/>
-  <!-- the zero, seated on the surface -->
-  <circle cx="512" cy="452" r="234" fill="none" stroke="url(#ring)" stroke-width="98"/>
-  <!-- plugin slots on the bench -->
-  <rect x="300" y="764" width="74" height="74" rx="18" fill="#38BDF8"/>
-  <rect x="475" y="764" width="74" height="74" rx="18" fill="#818CF8"/>
-  <rect x="650" y="764" width="74" height="74" rx="18" fill="#E2E8F0"/>
+
+  <rect width="1024" height="1024" rx="224" fill="#101217"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="218" fill="none" stroke="#242832" stroke-width="2"/>
+
+  <!-- the zero, seated on the beam -->
+  <circle cx="512" cy="398" r="206" fill="none" stroke="url(#lzRing)" stroke-width="88"/>
+
+  <!-- beam -->
+  <rect x="170" y="660" width="684" height="58" rx="29" fill="#2A2F3A"/>
+
+  <!-- plugin modules slotted under the bench -->
+  <rect x="300" y="754" width="92" height="92" rx="22" fill="#5E8CFF"/>
+  <rect x="466" y="754" width="92" height="92" rx="22" fill="#8FB0FF"/>
+  <rect x="632" y="754" width="92" height="92" rx="22" fill="#3D4450"/>
 </svg>

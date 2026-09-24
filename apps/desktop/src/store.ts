@@ -22,6 +22,10 @@ import { Methods } from '@workbench-zero/protocol';
 import { rpc } from './kernel';
 import { pluginHost } from './pluginHost';
 
+// Surface host-detected plugin failures (e.g. apiVersion mismatch) as toasts.
+pluginHost.onPluginError = (pluginId, message) =>
+  useApp.getState().pushToast({ title: `Plugin ${pluginId}`, body: message, tone: 'danger' });
+
 export interface ViewTab {
   /** Unique tab id. */
   id: string;
@@ -72,6 +76,8 @@ interface AppState {
   refreshSettings(): Promise<void>;
   refreshWorkspaces(): Promise<void>;
   openTab(tab: Omit<ViewTab, 'id'> & { id?: string }): string;
+  /** Open a workspace and restore its persisted layout. */
+  openWorkspace(id: string): Promise<void>;
   closeTab(id: string): void;
   setActiveTab(id: string): void;
   setOverlay(overlay: AppState['overlay']): void;
@@ -85,6 +91,75 @@ interface AppState {
 function tabIdFor(tab: Omit<ViewTab, 'id'>): string {
   if (tab.kind === 'plugin-view') return `view:${tab.pluginId}:${tab.viewId}`;
   return tab.kind;
+}
+
+/** Persisted per-workspace shell layout (`.workbench/layout.json`). */
+export interface LayoutSnapshot {
+  tabs?: unknown;
+  activeTab?: unknown;
+  sidebarVisible?: unknown;
+  bottomPanelVisible?: unknown;
+}
+
+const VALID_TAB_KINDS = new Set(['dashboard', 'settings', 'store', 'plugin-view', 'search']);
+
+/** Coerce an untrusted persisted layout into safe shell state. A corrupt or
+ * foreign layout must never break the shell — worst case we keep defaults. */
+function sanitizeLayout(layout: LayoutSnapshot): Partial<AppState> {
+  const out: Partial<AppState> = {};
+  if (Array.isArray(layout.tabs)) {
+    const tabs: ViewTab[] = [];
+    for (const raw of layout.tabs) {
+      if (!raw || typeof raw !== 'object') continue;
+      const t = raw as ViewTab;
+      if (
+        typeof t.id !== 'string' ||
+        typeof t.title !== 'string' ||
+        !VALID_TAB_KINDS.has(t.kind)
+      )
+        continue;
+      tabs.push({
+        id: t.id,
+        kind: t.kind,
+        title: t.title,
+        pluginId: typeof t.pluginId === 'string' ? t.pluginId : undefined,
+        viewId: typeof t.viewId === 'string' ? t.viewId : undefined,
+      });
+    }
+    if (tabs.length > 0) {
+      out.tabs = tabs;
+      const active =
+        typeof layout.activeTab === 'string' && tabs.some((t) => t.id === layout.activeTab)
+          ? layout.activeTab
+          : tabs[0].id;
+      out.activeTab = active;
+    }
+  }
+  if (typeof layout.sidebarVisible === 'boolean') out.sidebarVisible = layout.sidebarVisible;
+  if (typeof layout.bottomPanelVisible === 'boolean')
+    out.bottomPanelVisible = layout.bottomPanelVisible;
+  return out;
+}
+
+/** Debounced layout persistence — layout churn (tab drags) must not flood
+ * the kernel, and every write is atomic on the kernel side anyway. */
+let layoutSaveTimer: ReturnType<typeof setTimeout> | undefined;
+function scheduleLayoutSave() {
+  clearTimeout(layoutSaveTimer);
+  layoutSaveTimer = setTimeout(() => {
+    const s = useApp.getState();
+    if (!s.currentWorkspace) return;
+    void rpc(Methods.workspace.saveLayout, {
+      layout: {
+        tabs: s.tabs,
+        activeTab: s.activeTab,
+        sidebarVisible: s.sidebarVisible,
+        bottomPanelVisible: s.bottomPanelVisible,
+      },
+    }).catch(() => {
+      /* transient kernel hiccup — the next mutation retries */
+    });
+  }, 400);
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -135,6 +210,16 @@ export const useApp = create<AppState>((set, get) => ({
         theme,
         overlay: firstRun ? 'welcome' : null,
       });
+      // Honor "Reopen last workspace on launch": the kernel opens nothing
+      // by itself — restoring the user's context is the shell's job.
+      if (
+        !get().currentWorkspace &&
+        get().settings['core.startup.openLastWorkspace'] !== false &&
+        get().workspaces.length > 0 &&
+        !firstRun
+      ) {
+        await get().openWorkspace(get().workspaces[0].id);
+      }
     } catch (err) {
       set({ bootError: String(err), booted: true });
     }
@@ -166,6 +251,18 @@ export const useApp = create<AppState>((set, get) => ({
     set({ workspaces, currentWorkspace: current });
   },
 
+  async openWorkspace(id) {
+    const res = await rpc<{ workspace: WorkspaceInfo; layout: unknown }>(
+      Methods.workspace.open,
+      { id },
+    );
+    await get().refreshWorkspaces();
+    const restore = get().settings['core.behavior.restoreLayout'] !== false;
+    if (restore && res?.layout && typeof res.layout === 'object') {
+      set(sanitizeLayout(res.layout as LayoutSnapshot));
+    }
+  },
+
   openTab(tab) {
     const id = tab.id ?? tabIdFor(tab);
     const existing = get().tabs.find((t) => t.id === id);
@@ -179,6 +276,7 @@ export const useApp = create<AppState>((set, get) => ({
         () => {},
       );
     }
+    scheduleLayoutSave();
     return id;
   },
 
@@ -186,10 +284,12 @@ export const useApp = create<AppState>((set, get) => ({
     const tabs = get().tabs.filter((t) => t.id !== id);
     const activeTab = get().activeTab === id ? (tabs.at(-1)?.id ?? null) : get().activeTab;
     set({ tabs, activeTab });
+    scheduleLayoutSave();
   },
 
   setActiveTab(id) {
     set({ activeTab: id });
+    scheduleLayoutSave();
   },
 
   setOverlay(overlay) {
@@ -311,9 +411,11 @@ async function runCoreCommand(id: string, _args?: string): Promise<void> {
       break;
     case 'core.toggleSidebar':
       useApp.setState({ sidebarVisible: !app.sidebarVisible });
+      scheduleLayoutSave();
       break;
     case 'core.toggleBottomPanel':
       useApp.setState({ bottomPanelVisible: !app.bottomPanelVisible });
+      scheduleLayoutSave();
       break;
     case 'core.closeTab':
       if (app.activeTab) app.closeTab(app.activeTab);

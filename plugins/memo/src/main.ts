@@ -141,8 +141,16 @@ async function createMemo(text: string): Promise<Memo> {
   }
   const now = new Date().toISOString();
   const title = text.trim().split('\n')[0].slice(0, 80) || 'Untitled';
+  // Same-second, same-slug memos would collide on `stamp-slug.md` and
+  // silently overwrite each other — probe for existence and suffix.
+  let uri = `${dir}/${stamp()}-${slugify(title)}.md`;
+  for (let n = 2; ; n++) {
+    const taken = await ctx.fs.stat(uri).catch(() => null);
+    if (!taken?.isFile) break;
+    uri = `${dir}/${stamp()}-${slugify(title)}-${n}.md`;
+  }
   const m: Memo = {
-    uri: `${dir}/${stamp()}-${slugify(title)}.md`,
+    uri,
     title,
     body: text.trim() ? `${text.trim()}\n` : '',
     createdAt: now,

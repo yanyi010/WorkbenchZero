@@ -10,17 +10,50 @@ use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde_json::Value;
+use wz_common::MutexRecover;
 
 use crate::{CallerCtx, KResult, Kernel, KernelError};
 
 pub struct NetService {
-    client: reqwest::blocking::Client,
+    /// `None` when the TLS/HTTP stack failed to initialize: network
+    /// capability degrades to clean errors instead of a boot-time panic.
+    client: Option<reqwest::blocking::Client>,
     streams: Mutex<HashMap<String, Arc<StreamHandle>>>,
     next: AtomicU64,
 }
 
 struct StreamHandle {
     abort: tokio::sync::watch::Sender<bool>,
+    /// Owning plugin (None = application shell): only the owner may abort.
+    owner: Option<String>,
+}
+
+/// Error messages never embed full URLs: URLs routinely carry API tokens in
+/// query strings or userinfo, and plugin-facing errors end up in logs.
+/// Keep scheme and host only.
+pub fn redact_url(url: &str) -> String {
+    match reqwest::Url::parse(url) {
+        Ok(u) => format!("{}://{}", u.scheme(), u.host_str().unwrap_or_default()),
+        Err(_) => "<unparseable url>".to_string(),
+    }
+}
+
+/// Classified reason so reqwest error strings (which embed the full URL)
+/// never reach logs or plugin-callers.
+fn net_error_reason(e: &reqwest::Error) -> &'static str {
+    if e.is_timeout() {
+        "timed out"
+    } else if e.is_connect() {
+        "connection failed"
+    } else if e.is_redirect() {
+        "redirect policy failure"
+    } else if e.is_decode() {
+        "response decode failed"
+    } else if e.is_status() {
+        "http error status"
+    } else {
+        "request failed"
+    }
 }
 
 impl Default for NetService {
@@ -31,11 +64,17 @@ impl Default for NetService {
 
 impl NetService {
     pub fn new() -> Self {
-        let client = reqwest::blocking::Client::builder()
+        let client = match reqwest::blocking::Client::builder()
             .connect_timeout(Duration::from_secs(15))
             .timeout(Duration::from_secs(120))
             .build()
-            .expect("failed to build http client");
+        {
+            Ok(c) => Some(c),
+            Err(e) => {
+                tracing::error!(error = %e, "http client init failed; network capability disabled");
+                None
+            }
+        };
         Self {
             client,
             streams: Mutex::new(HashMap::new()),
@@ -44,16 +83,23 @@ impl NetService {
     }
 
     pub fn abort_all(&self) {
-        let mut streams = self.streams.lock().unwrap();
+        let mut streams = self.streams.lock_or_recover();
         for (_, handle) in streams.drain() {
             let _ = handle.abort.send(true);
         }
     }
 
-    pub fn abort(&self, stream_id: &str) -> bool {
-        let mut streams = self.streams.lock().unwrap();
-        match streams.remove(stream_id) {
+    /// Abort a stream. Plugin callers may only abort their own streams.
+    pub fn abort(&self, stream_id: &str, caller: &CallerCtx) -> bool {
+        let mut streams = self.streams.lock_or_recover();
+        match streams.get(stream_id) {
             Some(handle) => {
+                if let Some(plugin_id) = &caller.plugin_id {
+                    if handle.owner.as_ref() != Some(plugin_id) {
+                        return false;
+                    }
+                }
+                let handle = streams.remove(stream_id).expect("checked above");
                 let _ = handle.abort.send(true);
                 true
             }
@@ -64,11 +110,11 @@ impl NetService {
 
 fn extract_host(url: &str) -> Result<String, KernelError> {
     reqwest::Url::parse(url)
-        .map_err(|e| KernelError::Message(format!("invalid url `{url}`: {e}")))
+        .map_err(|_| KernelError::Message("invalid url".into()))
         .and_then(|u| {
             u.host_str()
                 .map(|h| h.to_string())
-                .ok_or_else(|| KernelError::Message(format!("url `{url}` has no host")))
+                .ok_or_else(|| KernelError::Message("url has no host".into()))
         })
 }
 
@@ -124,14 +170,22 @@ pub fn fetch(
             .connect_timeout(Duration::from_secs(15))
             .timeout(Duration::from_millis(ms))
             .build()
-            .map_err(|e| KernelError::Message(format!("client build failed: {e}")))?
+            .map_err(|_| KernelError::Message("http client init failed".into()))?
     } else {
-        kernel.net.client.clone()
+        kernel
+            .net
+            .client
+            .clone()
+            .ok_or_else(|| KernelError::Message("network capability unavailable".into()))?
     };
     let builder = build_request(&client, method, url, headers, body)?;
-    let response = builder
-        .send()
-        .map_err(|e| KernelError::Message(format!("request to `{url}` failed: {e}")))?;
+    let response = builder.send().map_err(|e| {
+        KernelError::Message(format!(
+            "request to {} failed: {}",
+            redact_url(url),
+            net_error_reason(&e)
+        ))
+    })?;
     let status = response.status().as_u16();
     let mut response_headers = serde_json::Map::new();
     for (name, value) in response.headers() {
@@ -142,7 +196,7 @@ pub fn fetch(
     }
     let text = response
         .text()
-        .map_err(|e| KernelError::Message(format!("read body failed: {e}")))?;
+        .map_err(|_| KernelError::Message("failed to read response body".into()))?;
     Ok(serde_json::json!({
         "status": status,
         "headers": response_headers,
@@ -161,12 +215,20 @@ pub fn fetch_stream(
     body: Option<&str>,
 ) -> KResult<Value> {
     check_permission(kernel, caller, url)?;
+    if kernel.net.client.is_none() {
+        return Err(KernelError::Message(
+            "network capability unavailable".into(),
+        ));
+    }
     let target_plugin = caller.plugin_id.clone();
     let stream_id = format!("net-{}", kernel.net.next.fetch_add(1, Ordering::SeqCst));
     let (abort_tx, mut abort_rx) = tokio::sync::watch::channel(false);
-    kernel.net.streams.lock().unwrap().insert(
+    kernel.net.streams.lock_or_recover().insert(
         stream_id.clone(),
-        Arc::new(StreamHandle { abort: abort_tx }),
+        Arc::new(StreamHandle {
+            abort: abort_tx,
+            owner: target_plugin.clone(),
+        }),
     );
 
     let url_owned = url.to_string();
@@ -192,7 +254,7 @@ pub fn fetch_stream(
         )
         .await;
         let _ = result;
-        kernel.net.streams.lock().unwrap().remove(&sid);
+        kernel.net.streams.lock_or_recover().remove(&sid);
     });
 
     Ok(serde_json::json!({ "streamId": stream_id }))
@@ -217,7 +279,7 @@ async fn run_stream(
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(15))
         .build()
-        .map_err(|e| KernelError::Message(format!("client build failed: {e}")))?;
+        .map_err(|_| KernelError::Message("http client init failed".into()))?;
     let method = reqwest::Method::from_bytes(req.method.to_uppercase().as_bytes())
         .map_err(|_| KernelError::Message(format!("unsupported http method `{}`", req.method)))?;
     let mut builder = client.request(method, req.url);
@@ -233,10 +295,13 @@ async fn run_stream(
     if let Some(body) = req.body {
         builder = builder.body(body.to_string());
     }
-    let response = builder
-        .send()
-        .await
-        .map_err(|e| KernelError::Message(format!("request to `{}` failed: {e}", req.url)))?;
+    let response = builder.send().await.map_err(|e| {
+        KernelError::Message(format!(
+            "request to {} failed: {}",
+            redact_url(req.url),
+            net_error_reason(&e)
+        ))
+    })?;
     let status = response.status().as_u16();
     let mut stream = response.bytes_stream();
 

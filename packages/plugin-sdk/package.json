@@ -1,6 +1,6 @@
 {
   "name": "@workbench-zero/plugin-sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -11,7 +11,7 @@
     "./markdown": "./src/markdown.ts"
   },
   "dependencies": {
-    "@workbench-zero/protocol": "0.1.0",
+    "@workbench-zero/protocol": "1.0.0",
     "marked": "^15.0.4",
     "dompurify": "^3.2.3"
   }

@@ -198,8 +198,13 @@ impl Server {
                 let base = if subdir.is_empty() {
                     self.workspace.clone()
                 } else {
-                    let resolved = self.workspace.join(subdir);
-                    // Contain path traversal.
+                    // Contain traversal *before* any filesystem access:
+                    // absolute subdirs and `..` segments must not escape.
+                    if PathBuf::from(subdir).is_absolute() {
+                        return Err("subdir must be relative".into());
+                    }
+                    let resolved = wz_permissions::resolve(&self.workspace.join(subdir))
+                        .map_err(|e| format!("invalid subdir: {e}"))?;
                     if !resolved.starts_with(&self.workspace) {
                         return Err("subdir escapes the workspace".into());
                     }
@@ -415,4 +420,47 @@ fn dirs_config_path() -> PathBuf {
             .join("mcp-server.json");
     }
     PathBuf::from("wz-mcp.json")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(sub: &str) -> Server {
+        let base = std::env::temp_dir().join(format!("wz-mcp-test-{}-{}", std::process::id(), sub));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("docs")).unwrap();
+        std::fs::write(base.join("docs").join("a.md"), "hello").unwrap();
+        Server {
+            workspace: base.canonicalize().unwrap(),
+            allow: vec!["*".into()],
+        }
+    }
+
+    #[test]
+    fn workspace_files_containment() {
+        let s = server("containment");
+        // Normal case works.
+        let ok = s
+            .call(TOOL_WORKSPACE_FILES, &json!({ "subdir": "docs" }))
+            .unwrap();
+        assert!(ok["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"] == "docs/a.md"));
+        // `..` and absolute paths must be refused.
+        for subdir in ["..", "../..", "./..", "/etc", "docs/../../.."] {
+            let r = s.call(TOOL_WORKSPACE_FILES, &json!({ "subdir": subdir }));
+            assert!(r.is_err(), "subdir `{subdir}` must be rejected: {r:?}");
+        }
+    }
+
+    #[test]
+    fn memo_read_rejects_traversal() {
+        let s = server("memo");
+        for name in ["../secret.txt", "..", "a/b", "x\\y"] {
+            assert!(s.call(TOOL_MEMO_READ, &json!({ "name": name })).is_err());
+        }
+    }
 }

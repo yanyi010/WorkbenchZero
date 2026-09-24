@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use wz_common::MutexRecover;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
@@ -40,17 +41,24 @@ pub fn valid_event_name(name: &str) -> bool {
     parts >= 2
 }
 
+/// Per-subscriber queue depth. Events are notifications (spec §28-29), never a
+/// reliability channel; a subscriber that falls behind loses its oldest
+/// events instead of growing memory without bound.
+pub const EVENT_QUEUE_CAPACITY: usize = 1024;
+
 struct Subscriber {
     id: u64,
     /// `None` receives all events; `Some(name)` receives exact matches only.
     filter: Option<String>,
-    sender: mpsc::UnboundedSender<Event>,
+    sender: mpsc::Sender<Event>,
 }
 
 #[derive(Default)]
 pub struct EventBusState {
     next_id: AtomicU64,
     subscribers: Mutex<Vec<Subscriber>>,
+    /// Events dropped because a subscriber's queue was full.
+    dropped: AtomicU64,
 }
 
 #[derive(Clone, Default)]
@@ -62,16 +70,16 @@ pub struct EventBus {
 pub struct Subscription {
     bus: EventBus,
     id: u64,
-    pub receiver: mpsc::UnboundedReceiver<Event>,
+    pub receiver: mpsc::Receiver<Event>,
 }
 
 impl Drop for Subscription {
     fn drop(&mut self) {
+        // During unwinding this must never panic — poisoning is recovered.
         self.bus
             .state
             .subscribers
-            .lock()
-            .unwrap()
+            .lock_or_recover()
             .retain(|s| s.id != self.id);
     }
 }
@@ -83,8 +91,8 @@ impl EventBus {
 
     pub fn subscribe(&self, filter: Option<String>) -> Subscription {
         let id = self.state.next_id.fetch_add(1, Ordering::Relaxed);
-        let (tx, rx) = mpsc::unbounded_channel();
-        self.state.subscribers.lock().unwrap().push(Subscriber {
+        let (tx, rx) = mpsc::channel(EVENT_QUEUE_CAPACITY);
+        self.state.subscribers.lock_or_recover().push(Subscriber {
             id,
             filter,
             sender: tx,
@@ -111,20 +119,34 @@ impl EventBus {
         };
         let mut delivered = 0;
         let mut dead = Vec::new();
-        let subs = self.state.subscribers.lock().unwrap();
+        let subs = self.state.subscribers.lock_or_recover();
         for (idx, sub) in subs.iter().enumerate() {
             let matches = sub.filter.as_deref().map(|f| f == name).unwrap_or(true);
-            if matches {
-                if sub.sender.send(event.clone()).is_ok() {
-                    delivered += 1;
-                } else {
-                    dead.push(idx);
+            if !matches {
+                continue;
+            }
+            match sub.sender.try_send(event.clone()) {
+                Ok(()) => delivered += 1,
+                Err(mpsc::error::TrySendError::Full(_)) => {
+                    // A subscriber that fell 1024 events behind is wedged;
+                    // drop this event for it and count the loss (surfaced via
+                    // `dropped_events` / diagnostics) rather than blocking the
+                    // emitter or letting memory grow without bound.
+                    let dropped = self.state.dropped.fetch_add(1, Ordering::Relaxed) + 1;
+                    if dropped % 128 == 1 {
+                        tracing::warn!(
+                            event = name,
+                            dropped,
+                            "subscriber queue full; events dropped"
+                        );
+                    }
                 }
+                Err(mpsc::error::TrySendError::Closed(_)) => dead.push(idx),
             }
         }
         drop(subs);
         if !dead.is_empty() {
-            let mut subs = self.state.subscribers.lock().unwrap();
+            let mut subs = self.state.subscribers.lock_or_recover();
             for idx in dead.into_iter().rev() {
                 if idx < subs.len() {
                     subs.remove(idx);
@@ -135,7 +157,12 @@ impl EventBus {
     }
 
     pub fn subscriber_count(&self) -> usize {
-        self.state.subscribers.lock().unwrap().len()
+        self.state.subscribers.lock_or_recover().len()
+    }
+
+    /// Total events dropped due to full subscriber queues (diagnostics).
+    pub fn dropped_events(&self) -> u64 {
+        self.state.dropped.load(Ordering::Relaxed)
     }
 }
 
@@ -191,6 +218,17 @@ mod tests {
             assert_eq!(bus.subscriber_count(), 1);
         }
         assert_eq!(bus.subscriber_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn bounded_queue_drops_instead_of_growing() {
+        let bus = EventBus::new();
+        // Never drained: the subscriber queue fills up.
+        let _sub = bus.subscribe(None);
+        for i in 0..(EVENT_QUEUE_CAPACITY + 100) {
+            bus.emit("memo.created", None, serde_json::json!({"i": i}));
+        }
+        assert_eq!(bus.dropped_events(), 100);
     }
 
     #[test]

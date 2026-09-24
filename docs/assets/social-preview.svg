@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Workbench Zero — local-first workbench, sandboxed plugins, durable by default">
+  <!-- GitHub social preview 1280×640 — brand set in the same flat language
+       as the product surfaces. -->
+  <style>
+    .t { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+    .m { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+  </style>
+  <rect width="1280" height="640" fill="#0C0D10"/>
+
+  <!-- mark -->
+  <g transform="translate(120,180)">
+    <circle cx="100" cy="86" r="76" fill="none" stroke="#5E8CFF" stroke-width="30"/>
+    <rect x="0" y="190" width="200" height="22" rx="11" fill="#2A2F3A"/>
+    <rect x="38" y="228" width="22" height="22" rx="6" fill="#5E8CFF"/>
+    <rect x="89" y="228" width="22" height="22" rx="6" fill="#8FB0FF"/>
+    <rect x="140" y="228" width="22" height="22" rx="6" fill="#3D4450"/>
+  </g>
+
+  <!-- brand type -->
+  <text class="t" x="420" y="222" font-size="64" font-weight="700" fill="#F2F3F5" letter-spacing="-1.2">Workbench Zero</text>
+  <text class="t" x="422" y="272" font-size="25" fill="#9BA1A9">Your workbench. From zero.</text>
+  <text class="t" x="422" y="316" font-size="18" fill="#6B7280">Notes, tasks, files, terminals — and AI if you want it. Plain files, one folder, yours.</text>
+
+  <g class="m" font-size="15">
+    <rect x="420" y="350" width="150" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="446" y="375" fill="#7AA2FF">local-first</text>
+    <rect x="586" y="350" width="204" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="612" y="375" fill="#7AA2FF">sandboxed plugins</text>
+    <rect x="806" y="350" width="190" height="38" rx="19" fill="#16203A" stroke="#2E4372"/>
+    <text x="832" y="375" fill="#7AA2FF">durable by default</text>
+  </g>
+
+  <g class="m" font-size="15">
+    <rect x="420" y="412" width="168" height="38" rx="19" fill="none" stroke="#39404B"/>
+    <text x="452" y="437" fill="#C9CDD4">v1.0.0 · MIT</text>
+    <text x="612" y="437" fill="#4B515C">github.com/yanyi010/WorkbenchZero</text>
+  </g>
+
+  <line x1="420" y1="500" x2="1160" y2="500" stroke="#23262E"/>
+  <text class="m" x="420" y="534" font-size="13" fill="#4B515C">atomic writes · quarantine not deletion · automatic snapshots · deny-by-default permissions</text>
+</svg>

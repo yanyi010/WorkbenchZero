@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 400" role="img" aria-label="Workbench Zero at a glance: local-first, everything is a plugin, durable by default">
+  <!-- Three feature cards sharing one visual language. Captions are baked in
+       for pixel-exact alignment; alt text mirrors them. -->
+  <style>
+    .t { font-family: Inter, 'Liberation Sans', 'DejaVu Sans', sans-serif; }
+    .m { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+  </style>
+  <rect width="1560" height="400" fill="#0C0D10"/>
+
+  <!-- ── card 1: local-first ─────────────────────────────────── -->
+  <g>
+    <rect x="32" y="32" width="480" height="336" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="t" x="64" y="76" font-size="15" font-weight="600" fill="#ECEDEF">Local-first, plain files</text>
+    <text class="t" x="64" y="98" font-size="12.5" fill="#8A9098">A folder of Markdown and JSON you own.</text>
+
+    <!-- directory tree -->
+    <g class="m" font-size="12.5" fill="#B9BEC6">
+      <text x="64" y="140"><tspan fill="#7AA2FF">Research/</tspan></text>
+      <text x="84" y="164">Memos/reading-list.md</text>
+      <text x="84" y="186">Tasks/tasks.json</text>
+      <text x="84" y="208">Stickies/sticky-04a1.md</text>
+      <text x="64" y="232">.workbench/backups/20260923-0900/</text>
+    </g>
+
+    <!-- tool chips -->
+    <g font-size="11.5" class="m">
+      <rect x="64" y="268" width="70" height="26" rx="13" fill="#16203A" stroke="#2E4372"/>
+      <text x="82" y="285" fill="#7AA2FF">git</text>
+      <rect x="146" y="268" width="86" height="26" rx="13" fill="#16203A" stroke="#2E4372"/>
+      <text x="168" y="285" fill="#7AA2FF">rsync</text>
+      <rect x="244" y="268" width="110" height="26" rx="13" fill="#16203A" stroke="#2E4372"/>
+      <text x="260" y="285" fill="#7AA2FF">grep / cat</text>
+    </g>
+    <text class="m" x="64" y="334" font-size="11.5" fill="#69707C">no account · no cloud · no lock-in</text>
+  </g>
+
+  <!-- ── card 2: everything is a plugin ──────────────────────── -->
+  <g>
+    <rect x="536" y="32" width="480" height="336" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="t" x="568" y="76" font-size="15" font-weight="600" fill="#ECEDEF">Everything is a plugin</text>
+    <text class="t" x="568" y="98" font-size="12.5" fill="#8A9098">The shell ships almost no features.</text>
+
+    <!-- kernel core -->
+    <circle cx="776" cy="205" r="34" fill="#16203A" stroke="#2E4372"/>
+    <text class="t" x="776" y="210" font-size="12" font-weight="600" fill="#7AA2FF" text-anchor="middle">kernel</text>
+
+    <!-- spokes -->
+    <g stroke="#39404B" stroke-width="1.5">
+      <line x1="776" y1="171" x2="776" y2="128"/>
+      <line x1="776" y1="239" x2="776" y2="282"/>
+      <line x1="808" y1="188" x2="858" y2="150"/>
+      <line x1="808" y1="222" x2="858" y2="260"/>
+      <line x1="744" y1="188" x2="694" y2="150"/>
+      <line x1="744" y1="222" x2="694" y2="260"/>
+    </g>
+    <g font-size="11" class="t" text-anchor="middle">
+      <rect x="742" y="104" width="68" height="24" rx="6" fill="#232833"/><text x="776" y="120" fill="#C9CDD4">memo</text>
+      <rect x="826" y="130" width="68" height="24" rx="6" fill="#232833"/><text x="860" y="146" fill="#C9CDD4">ai</text>
+      <rect x="826" y="262" width="68" height="24" rx="6" fill="#232833"/><text x="860" y="278" fill="#C9CDD4">files</text>
+      <rect x="742" y="282" width="68" height="24" rx="6" fill="#232833"/><text x="776" y="298" fill="#C9CDD4">tasks</text>
+      <rect x="658" y="262" width="68" height="24" rx="6" fill="#232833"/><text x="692" y="278" fill="#C9CDD4">terminal</text>
+      <rect x="658" y="130" width="68" height="24" rx="6" fill="#232833"/><text x="692" y="146" fill="#C9CDD4">sticky</text>
+    </g>
+    <text class="m" x="568" y="342" font-size="11.5" fill="#69707C">6 first-party · yours next · all removable</text>
+    <!-- fix label typo guard: ai chip label -->
+  </g>
+
+  <!-- ── card 3: durable by default ──────────────────────────── -->
+  <g>
+    <rect x="1040" y="32" width="488" height="336" rx="12" fill="#15171C" stroke="#23262E"/>
+    <text class="t" x="1072" y="76" font-size="15" font-weight="600" fill="#ECEDEF">Durable by default</text>
+    <text class="t" x="1072" y="98" font-size="12.5" fill="#8A9098">Crash mid-write? Nothing tears.</text>
+
+    <!-- atomic pipeline -->
+    <g font-size="11.5" class="m">
+      <rect x="1072" y="128" width="112" height="34" rx="17" fill="#232833"/>
+      <text x="1128" y="150" fill="#C9CDD4" text-anchor="middle">tmp + write</text>
+      <path d="M1192 145 h18 m-5 -5 l5 5 l-5 5" fill="none" stroke="#69707C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="1218" y="128" width="96" height="34" rx="17" fill="#232833"/>
+      <text x="1266" y="150" fill="#C9CDD4" text-anchor="middle">fsync</text>
+      <path d="M1322 145 h18 m-5 -5 l5 5 l-5 5" fill="none" stroke="#69707C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="1348" y="128" width="120" height="34" rx="17" fill="#16203A" stroke="#2E4372"/>
+      <text x="1408" y="150" fill="#7AA2FF" text-anchor="middle">rename ✓</text>
+    </g>
+
+    <!-- snapshot rail -->
+    <text class="t" x="1072" y="200" font-size="10.5" font-weight="600" fill="#69707C" letter-spacing="1.4">.WORKBENCH/BACKUPS/</text>
+    <g class="m" font-size="11.5">
+      <rect x="1072" y="214" width="120" height="26" rx="6" fill="#232833"/>
+      <text x="1084" y="231" fill="#9BA1A9">20260923-0900</text>
+      <rect x="1204" y="214" width="120" height="26" rx="6" fill="#232833"/>
+      <text x="1216" y="231" fill="#9BA1A9">20260924-0900</text>
+      <rect x="1336" y="214" width="120" height="26" rx="6" fill="#16203A" stroke="#2E4372"/>
+      <text x="1348" y="231" fill="#7AA2FF">20260925 →</text>
+    </g>
+    <text class="m" x="1072" y="278" font-size="11.5" fill="#69707C">quarantine, never discard:  settings.json.corrupt-09:14</text>
+    <text class="m" x="1072" y="334" font-size="11.5" fill="#46A758">✓ 31 durability tests in CI</text>
+  </g>
+</svg>

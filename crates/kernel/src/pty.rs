@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use portable_pty::{ChildKiller, CommandBuilder, MasterPty, PtySize};
+use wz_common::MutexRecover;
 
 use crate::fs::b64_encode;
 use crate::{CallerCtx, Kernel, KernelError};
@@ -45,7 +46,7 @@ impl PtyManager {
     }
 
     pub fn list(&self) -> Vec<serde_json::Value> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self.sessions.lock_or_recover();
         let mut out: Vec<serde_json::Value> = sessions
             .values()
             .map(|s| {
@@ -68,16 +69,16 @@ impl PtyManager {
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<PtySession>> {
-        self.sessions.lock().unwrap().get(id).cloned()
+        self.sessions.lock_or_recover().get(id).cloned()
     }
 
     fn remove(&self, id: &str) {
-        self.sessions.lock().unwrap().remove(id);
+        self.sessions.lock_or_recover().remove(id);
     }
 
     pub fn kill_all(&self) {
         let sessions: Vec<Arc<PtySession>> =
-            self.sessions.lock().unwrap().values().cloned().collect();
+            self.sessions.lock_or_recover().values().cloned().collect();
         for session in sessions {
             session.kill();
         }
@@ -86,7 +87,7 @@ impl PtyManager {
 
 impl PtySession {
     pub fn write(&self, data: &[u8]) -> Result<(), KernelError> {
-        let mut writer = self.writer.lock().unwrap();
+        let mut writer = self.writer.lock_or_recover();
         writer
             .write_all(data)
             .and_then(|_| writer.flush())
@@ -107,7 +108,7 @@ impl PtySession {
     }
 
     pub fn kill(&self) {
-        let _ = self.killer.lock().unwrap().kill();
+        let _ = self.killer.lock_or_recover().kill();
         self.alive.store(false, Ordering::SeqCst);
     }
 }
@@ -216,7 +217,7 @@ pub fn create(
     let target_read = target.clone();
     let kernel_for_read = kernel.clone();
     let sid = session_id.clone();
-    std::thread::Builder::new()
+    let reader_spawn = std::thread::Builder::new()
         .name(format!("ed-{sid}-read"))
         .spawn(move || {
             let mut buf = [0u8; 16384];
@@ -248,14 +249,20 @@ pub fn create(
                     }
                 }
             }
-        })
-        .expect("spawn pty reader thread");
+        });
+    if let Err(e) = reader_spawn {
+        kernel.pty.remove(&session_id);
+        session.kill();
+        return Err(KernelError::Message(format!(
+            "cannot spawn pty reader thread: {e}"
+        )));
+    }
 
     let kernel_for_wait = kernel.clone();
     let sid = session_id.clone();
     let session_for_wait = session.clone();
     let target_wait = target.clone();
-    std::thread::Builder::new()
+    let waiter_spawn = std::thread::Builder::new()
         .name(format!("ed-{sid}-wait"))
         .spawn(move || {
             let status = child.wait();
@@ -283,8 +290,14 @@ pub fn create(
                 serde_json::json!({ "sessionId": sid, "success": success }),
             );
             kernel_for_wait.pty.remove(&sid);
-        })
-        .expect("spawn pty wait thread");
+        });
+    if let Err(e) = waiter_spawn {
+        kernel.pty.remove(&session_id);
+        session.kill();
+        return Err(KernelError::Message(format!(
+            "cannot spawn pty wait thread: {e}"
+        )));
+    }
 
     kernel.events.emit(
         "terminal.created",
