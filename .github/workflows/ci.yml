@@ -4,9 +4,6 @@ on:
   push:
     branches: [main, dev/*, release/*]
   pull_request:
-  schedule:
-    # Nightly dependency-audit even without pushes.
-    - cron: '17 3 * * *'
 
 # Least privilege by default; jobs escalate nothing.
 permissions:
